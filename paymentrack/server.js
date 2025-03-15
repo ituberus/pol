@@ -23,10 +23,25 @@ const DEFAULT_CURRENCY = (CURRENCY || 'usd').toLowerCase();
 // Create Express app
 const app = express();
 
-// Open CORS for all domains (as requested)
-app.use(cors());
-// Handle preflight OPTIONS requests for all routes
-app.options('*', cors());
+/**
+ * Set up CORS so all origins are allowed.
+ * This also handles the preflight OPTIONS request.
+ */
+app.use(cors({
+  origin: '*',           // Allow all origins
+  methods: ['GET','POST','OPTIONS','PUT','PATCH','DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Type', 'Authorization'],
+  credentials: false     // Set to true if you need cookies
+}));
+
+// Explicitly handle all OPTIONS requests (again, typically cors() does this, but being explicit helps).
+app.options('*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS,PUT,PATCH,DELETE');
+  res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+  return res.sendStatus(200);
+});
 
 // Parse JSON and URL-encoded bodies
 app.use(express.json());
@@ -234,12 +249,10 @@ app.use((err, req, res, next) => {
 // Process-level error handlers
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  // Optionally: send the error to a logging service or perform cleanup.
 });
 
 process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception thrown:', err);
-  // In production, you might want to perform cleanup and restart the process.
 });
 
 // Start the server
