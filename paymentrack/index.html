@@ -742,7 +742,7 @@
                 // We'll track which donation amount is selected, and map each amount to a variant ID
                 const variantMap = {
                   "25": 177341125,
-                  "50": 177341188,
+                  "50": 176630907,
                   "100": 177341204,
                   "300": 177341301,
                   "500": 177341319,
@@ -944,7 +944,7 @@
                     };
               
                     try {
-                      const response = await fetch("https://perfectbodyfunnl-production.up.railway.app/create-donation-order", {
+                      const response = await fetch("https://pol-production.up.railway.app/create-donation-order", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify(payload),
