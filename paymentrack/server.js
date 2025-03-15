@@ -1,44 +1,61 @@
-/***********************
- * server.js
- ***********************/
 require('dotenv').config();
 const express = require('express');
-const cors = require('cors'); // Added CORS
+const cors = require('cors'); // Open CORS for all domains (required)
 const axios = require('axios');
 const path = require('path');
 
-const app = express();
-
-// Enable CORS for all routes so that any domain can use these endpoints.
-app.use(cors());
-
+// Verify required environment variables
 const {
   CARTPANDA_API_KEY,
   CARTPANDA_SHOP_SLUG,
-  PORT
+  PORT,
+  CURRENCY
 } = process.env;
 
-// We'll allow any currency, but default to "usd" if not set.
-const CURRENCY = (process.env.CURRENCY || 'usd').toLowerCase();
-
-// Helper: get tomorrow's date in YYYY-MM-DD format
-function getTomorrowDate() {
-  const tomorrow = new Date(Date.now() + 86400000);
-  return tomorrow.toISOString().split("T")[0];
+if (!CARTPANDA_API_KEY || !CARTPANDA_SHOP_SLUG) {
+  console.error('Error: Missing required environment variables (CARTPANDA_API_KEY or CARTPANDA_SHOP_SLUG).');
+  process.exit(1);
 }
 
-// Base URL for CartPanda API
-const CARTPANDA_API_BASE = 'https://accounts.cartpanda.com/api/v3';
+// Use default currency "usd" if not provided.
+const DEFAULT_CURRENCY = (CURRENCY || 'usd').toLowerCase();
 
+// Create Express app
+const app = express();
+
+// Open CORS for all domains (as requested)
+app.use(cors());
+
+// Parse JSON and URL-encoded bodies
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Serve static files from the 'public' directory
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Helper: Get tomorrow's date in YYYY-MM-DD format
+function getTomorrowDate() {
+  try {
+    const tomorrow = new Date(Date.now() + 86400000);
+    return tomorrow.toISOString().split("T")[0];
+  } catch (error) {
+    console.error('Error generating tomorrow\'s date:', error);
+    // Fallback to current date if any error occurs (should not happen)
+    return new Date().toISOString().split("T")[0];
+  }
+}
+
+// Base URL for CartPanda API
+const CARTPANDA_API_BASE = 'https://accounts.cartpanda.com/api/v3';
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK' });
+});
+
 /**
  * Create order endpoint
- * Expects JSON like:
+ * Expects JSON:
  * {
  *   donationAmount: number,
  *   variantId: number,
@@ -46,14 +63,15 @@ app.use(express.static(path.join(__dirname, 'public')));
  *   email: string
  * }
  */
-app.post('/create-donation-order', async (req, res) => {
+app.post('/create-donation-order', async (req, res, next) => {
   try {
     const { donationAmount, variantId, fullName, email } = req.body;
 
-    if (!donationAmount || isNaN(donationAmount) || donationAmount <= 0) {
+    // Validate inputs
+    if (!donationAmount || isNaN(donationAmount) || Number(donationAmount) <= 0) {
       return res.status(400).json({ error: 'Invalid donation amount' });
     }
-    if (!variantId) {
+    if (!variantId || isNaN(Number(variantId))) {
       return res.status(400).json({ error: 'Missing or invalid variant ID' });
     }
     if (!fullName || fullName.trim() === "") {
@@ -63,12 +81,12 @@ app.post('/create-donation-order', async (req, res) => {
       return res.status(400).json({ error: 'Email is required' });
     }
 
-    // Split fullName into firstName and lastName.
+    // Split fullName into firstName and lastName
     const nameParts = fullName.trim().split(/\s+/);
-    const firstName = nameParts[0] || '';
+    const firstName = nameParts[0];
     const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : '';
 
-    // The line_items must reference the correct variant_id
+    // Build line items array
     const lineItems = [
       {
         variant_id: Number(variantId),
@@ -76,12 +94,12 @@ app.post('/create-donation-order', async (req, res) => {
       }
     ];
 
-    // Build the order data with your currency
+    // Build the order data using the provided currency
     const orderData = {
       email,
-      phone: '0000000000',  // or any dummy phone if required by CartPanda
-      currency: CURRENCY,
-      presentment_currency: CURRENCY,
+      phone: '0000000000', // Dummy phone if required
+      currency: DEFAULT_CURRENCY,
+      presentment_currency: DEFAULT_CURRENCY,
       subtotal_amount: donationAmount,
       products_total_amount: donationAmount,
       total_amount: donationAmount,
@@ -109,10 +127,10 @@ app.post('/create-donation-order', async (req, res) => {
       payment: {
         payment_gateway_id: 'cartpanda_pay', // update if you have a specific gateway
         amount: donationAmount,
-        gateway: 'other',      // or specify your gateway
+        gateway: 'other', // specify your gateway if needed
         type: 'cc',
-        boleto_link: 'N/A',    // dummy
-        boleto_code: 'N/A',    // dummy
+        boleto_link: 'N/A', // dummy data
+        boleto_code: 'N/A', // dummy data
         boleto_limit_date: getTomorrowDate() // valid dummy date
       },
       customer: {
@@ -120,21 +138,25 @@ app.post('/create-donation-order', async (req, res) => {
         first_name: firstName,
         last_name: lastName
       },
-      // Replace this with your actual domain return URL
+      // Replace with your actual domain return URL
       thank_you_page: `https://your-domain.com/cartpanda_return`
     };
 
     const url = `${CARTPANDA_API_BASE}/${CARTPANDA_SHOP_SLUG}/order`;
+
+    // Call the CartPanda API to create an order
     const apiResponse = await axios.post(url, orderData, {
       headers: {
         'Authorization': `Bearer ${CARTPANDA_API_KEY}`,
         'Content-Type': 'application/json'
-      }
+      },
+      timeout: 10000 // Set timeout to avoid hanging requests
     });
 
     const createdOrder = apiResponse.data;
-
     let checkoutUrl = '';
+
+    // Determine the checkout URL based on the response
     if (createdOrder?.order?.checkout_link) {
       checkoutUrl = createdOrder.order.checkout_link;
     } else if (createdOrder.checkout_link) {
@@ -150,6 +172,7 @@ app.post('/create-donation-order', async (req, res) => {
     console.log('Created CartPanda order:', createdOrder);
     return res.json({ checkoutUrl });
   } catch (error) {
+    // Log detailed error for debugging while returning a generic message
     console.error('Error creating CartPanda order:', error.response?.data || error.message);
     return res.status(500).json({ error: 'Could not create order, please try again.' });
   }
@@ -167,23 +190,22 @@ app.get('/cartpanda_return', async (req, res) => {
     const orderResp = await axios.get(orderUrl, {
       headers: {
         'Authorization': `Bearer ${CARTPANDA_API_KEY}`
-      }
+      },
+      timeout: 10000 // Set timeout for the API request
     });
+
     const orderData = orderResp.data;
+    // Check for payment status (3 indicates paid; adjust if needed)
     const paid = (orderData?.payment_status === 3 || orderData?.status_id === '3');
 
-    if (paid) {
-      return res.redirect('/thanks.html');
-    } else {
-      return res.redirect('/error.html');
-    }
+    return paid ? res.redirect('/thanks.html') : res.redirect('/error.html');
   } catch (error) {
     console.error('Error verifying order status:', error.response?.data || error.message);
     return res.redirect('/error.html');
   }
 });
 
-// Optional: Webhook endpoint
+// Webhook endpoint (optional)
 app.post('/cartpanda-webhook', (req, res) => {
   try {
     const eventName = req.body.event;
@@ -196,6 +218,29 @@ app.post('/cartpanda-webhook', (req, res) => {
   }
 });
 
+// Catch-all route for undefined endpoints (404)
+app.use((req, res) => {
+  res.status(404).json({ error: 'Endpoint not found' });
+});
+
+// Global error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
+// Process-level error handlers
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  // Optionally: send the error to a logging service or perform cleanup.
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception thrown:', err);
+  // In production, you might want to perform cleanup and restart the process.
+});
+
+// Start the server
 const port = PORT || 3000;
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
