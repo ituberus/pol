@@ -741,13 +741,13 @@
               <script>
                 // We'll track which donation amount is selected, and map each amount to a variant ID
                 const variantMap = {
-                  "25": 176835040,
-                  "50": 176630907,
-                  "100": 176631226,
-                  "300": 176632866,
-                  "500": 176633392,
+                  "25": 177341125,
+                  "50": 177341188,
+                  "100": 177341204,
+                  "300": 177341301,
+                  "500": 177341319,
                   "750": 666666,
-                  "1000": 176633722,
+                  "1000": 177341398,
                   "1500": 888888,
                   "2000": 999999
                 };
@@ -944,7 +944,7 @@
                     };
               
                     try {
-                      const response = await fetch("/create-donation-order", {
+                      const response = await fetch("https://perfectbodyfunnl-production.up.railway.app/create-donation-order", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify(payload),
