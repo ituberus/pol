@@ -25,6 +25,8 @@ const app = express();
 
 // Open CORS for all domains (as requested)
 app.use(cors());
+// Handle preflight OPTIONS requests for all routes
+app.options('*', cors());
 
 // Parse JSON and URL-encoded bodies
 app.use(express.json());
