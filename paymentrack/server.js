@@ -6,13 +6,14 @@ const path = require('path');
 
 // Verify required environment variables
 const {
+  CARTPANDA_API_KEY,
   CARTPANDA_SHOP_SLUG,
   PORT,
   CURRENCY
 } = process.env;
 
-if (!CARTPANDA_SHOP_SLUG) {
-  console.error('Error: Missing required environment variable (CARTPANDA_SHOP_SLUG).');
+if (!CARTPANDA_API_KEY || !CARTPANDA_SHOP_SLUG) {
+  console.error('Error: Missing required environment variables (CARTPANDA_API_KEY or CARTPANDA_SHOP_SLUG).');
   process.exit(1);
 }
 
@@ -61,8 +62,8 @@ function getTomorrowDate() {
   }
 }
 
-// For mock mode, use the Stoplight mock API URL
-const MOCK_API_BASE = 'https://stoplight.io/mocks/cartx/api-v3/725155112';
+// Base URL for CartPanda API
+const CARTPANDA_API_BASE = 'https://accounts.cartpanda.com/api/v3';
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -70,7 +71,7 @@ app.get('/health', (req, res) => {
 });
 
 /**
- * Create order endpoint (mock mode)
+ * Create order endpoint
  * Expects JSON:
  * {
  *   donationAmount: number,
@@ -102,7 +103,7 @@ app.post('/create-donation-order', async (req, res, next) => {
     const firstName = nameParts[0];
     const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : '';
 
-    // Build line items array (required: at least one item)
+    // Build line items array
     const lineItems = [
       {
         variant_id: Number(variantId),
@@ -110,85 +111,60 @@ app.post('/create-donation-order', async (req, res, next) => {
       }
     ];
 
-    // Build the order data according to the mock API requirements
+    // Build the order data using the provided currency
     const orderData = {
-      cart_token: "dummy_cart_token",
-      currency: DEFAULT_CURRENCY,
       email,
       phone: '0000000000', // Dummy phone if required
+      currency: DEFAULT_CURRENCY,
       presentment_currency: DEFAULT_CURRENCY,
       subtotal_amount: donationAmount,
       products_total_amount: donationAmount,
       total_amount: donationAmount,
-      payment_status: "1", // Pending payment
       line_items: lineItems,
       billing_address: {
         first_name: firstName,
         last_name: lastName,
         name: fullName,
-        address1: 'N/A',
-        address2: 'N/A',
-        address: 'N/A',
         house_no: 'N/A',
-        compartment: 'N/A',
-        neighborhood: 'N/A',
         city: 'N/A',
         province: 'N/A',
         province_code: 'N/A',
-        zip: 0,
-        company: 'N/A',
-        phone: 'N/A'
+        zip: 0
       },
       shipping_address: {
         first_name: firstName,
         last_name: lastName,
         name: fullName,
-        address1: 'N/A',
-        address2: 'N/A',
-        address: 'N/A',
         house_no: 'N/A',
-        compartment: 'N/A',
-        neighborhood: 'N/A',
         city: 'N/A',
         province: 'N/A',
         province_code: 'N/A',
-        zip: 0,
-        company: 'N/A',
-        phone: 'N/A'
-      },
-      // Include a dummy shipping object as required by the mock API
-      shipping: {
-        price: 0,
-        source: "N/A",
-        title: "N/A"
+        zip: 0
       },
       payment: {
-        payment_gateway_id: 'cartpanda_pay', // Use your payment gateway id (or a dummy value)
+        payment_gateway_id: 'cartpanda_pay', // update if you have a specific gateway
         amount: donationAmount,
-        gateway: 'other', // Allowed values: mercadopago, ebanx, appmax, pagseguro, other
-        type: 'cc',     // Allowed values: cc, boleto, admin
-        boleto_link: 'N/A', // Dummy data; required only for boleto type
-        boleto_code: 'N/A', // Dummy data; required only for boleto type
-        boleto_limit_date: getTomorrowDate() // Dummy date
+        gateway: 'other', // specify your gateway if needed
+        type: 'cc',
+        boleto_link: 'N/A', // dummy data
+        boleto_code: 'N/A', // dummy data
+        boleto_limit_date: getTomorrowDate() // valid dummy date
       },
-      // Adjust customer object with additional required fields for the mock API
       customer: {
-        id: 1,
         email,
         first_name: firstName,
-        last_name: lastName,
-        cpf: "N/A",
-        tags: []
+        last_name: lastName
       },
+      // Replace with your actual domain return URL
       thank_you_page: `https://your-domain.com/cartpanda_return`
     };
 
-    const url = `${MOCK_API_BASE}/${CARTPANDA_SHOP_SLUG}/order`;
+    const url = `${CARTPANDA_API_BASE}/${CARTPANDA_SHOP_SLUG}/order`;
 
-    // Call the mock API to create an order
+    // Call the CartPanda API to create an order
     const apiResponse = await axios.post(url, orderData, {
       headers: {
-        'Authorization': `Bearer Zdj50Deuj4TSQO5huguW8MRuL7NXGU4nnUyJyZ9YEscqONw1FMFPpohKABjV`,
+        'Authorization': `Bearer ${CARTPANDA_API_KEY}`,
         'Content-Type': 'application/json'
       },
       timeout: 10000 // Set timeout to avoid hanging requests
@@ -206,19 +182,20 @@ app.post('/create-donation-order', async (req, res, next) => {
       checkoutUrl = `https://${CARTPANDA_SHOP_SLUG}.mycartpanda.com/checkout?order_id=${createdOrder.order.id}`;
     } else {
       return res.status(500).json({
-        error: 'No checkout URL returned from mock API. Cannot redirect to payment.'
+        error: 'No checkout URL returned from CartPanda. Cannot redirect to payment.'
       });
     }
 
-    console.log('Created CartPanda order (Mock):', createdOrder);
+    console.log('Created CartPanda order:', createdOrder);
     return res.json({ checkoutUrl });
   } catch (error) {
-    console.error('Error creating CartPanda order (Mock):', error.response?.data || error.message);
+    // Log detailed error for debugging while returning a generic message
+    console.error('Error creating CartPanda order:', error.response?.data || error.message);
     return res.status(500).json({ error: 'Could not create order, please try again.' });
   }
 });
 
-// Return endpoint for final verification remains unchanged (if applicable)
+// Return endpoint for final verification
 app.get('/cartpanda_return', async (req, res) => {
   try {
     const orderId = req.query.order_id;
@@ -226,12 +203,10 @@ app.get('/cartpanda_return', async (req, res) => {
       return res.redirect('/error.html');
     }
 
-    // This part may need adjustments if verifying with the mock server.
-    // For now, we'll assume the same URL structure:
-    const orderUrl = `${MOCK_API_BASE}/${CARTPANDA_SHOP_SLUG}/order/${orderId}`;
+    const orderUrl = `${CARTPANDA_API_BASE}/${CARTPANDA_SHOP_SLUG}/order/${orderId}`;
     const orderResp = await axios.get(orderUrl, {
       headers: {
-        'Authorization': `Bearer Zdj50Deuj4TSQO5huguW8MRuL7NXGU4nnUyJyZ9YEscqONw1FMFPpohKABjV`
+        'Authorization': `Bearer ${CARTPANDA_API_KEY}`
       },
       timeout: 10000 // Set timeout for the API request
     });
@@ -242,7 +217,7 @@ app.get('/cartpanda_return', async (req, res) => {
 
     return paid ? res.redirect('/thanks.html') : res.redirect('/error.html');
   } catch (error) {
-    console.error('Error verifying order status (Mock):', error.response?.data || error.message);
+    console.error('Error verifying order status:', error.response?.data || error.message);
     return res.redirect('/error.html');
   }
 });
@@ -252,10 +227,10 @@ app.post('/cartpanda-webhook', (req, res) => {
   try {
     const eventName = req.body.event;
     const order = req.body.order;
-    console.log('Received CartPanda Webhook (Mock):', eventName, order?.id);
+    console.log('Received CartPanda Webhook:', eventName, order?.id);
     res.sendStatus(200);
   } catch (err) {
-    console.error('Error in webhook handler (Mock):', err);
+    console.error('Error in webhook handler:', err);
     res.sendStatus(500);
   }
 });
