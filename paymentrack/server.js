@@ -30,11 +30,11 @@ const app = express();
  * This also handles the preflight OPTIONS request.
  */
 app.use(cors({
-  origin: '*',           // Allow all origins
+  origin: '*',
   methods: ['GET','POST','OPTIONS','PUT','PATCH','DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   exposedHeaders: ['Content-Type', 'Authorization'],
-  credentials: false     // Set to true if you need cookies
+  credentials: false
 }));
 
 // Explicitly handle all OPTIONS requests
@@ -49,7 +49,7 @@ app.options('*', (req, res) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static files (e.g., /public/thanks.html) if you need them
+// Serve static files from the 'public' directory
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Helper: Get tomorrow's date in YYYY-MM-DD format
@@ -59,14 +59,9 @@ function getTomorrowDate() {
     return tomorrow.toISOString().split("T")[0];
   } catch (error) {
     console.error('Error generating tomorrow\'s date:', error);
-    // Fallback to current date if any error occurs (should not happen)
+    // Fallback to current date if any error occurs
     return new Date().toISOString().split("T")[0];
   }
-}
-
-// Helper: Generate a random 4-digit number as fallback
-function getRandom4Digit() {
-  return Math.floor(1000 + Math.random() * 9000).toString();
 }
 
 // Base URL for CartPanda API
@@ -110,37 +105,53 @@ app.post('/create-donation-order', async (req, res, next) => {
     const firstName = nameParts[0];
     const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : '';
 
-    // ==============================
-    // IP-based geolocation & address
-    // ==============================
-    // Attempt to get user's IP from request
+    // --- Address generation/lookup begins here ---
+    // Get the user IP from the request headers or socket
     const userIP = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+    console.log('User IP address:', userIP);
 
-    // Lookup geographic info using geoip-lite
+    // Lookup geo info
     const geo = geoip.lookup(userIP);
 
-    // Extract city & country from geo data if available
-    let city = geo?.city || '';
-    let country = geo?.country || '';
+    // Pull out city, if missing fallback to 4-digit
+    let city = geo?.city || faker.string.numeric(4);
 
-    // Generate street address and postal code with faker
-    let streetAddress = faker.location.streetAddress();
-    let postalCode = faker.location.zipCode();
+    // Attempt to get a "state/province"
+    // If faker call fails or is empty, fallback to 4-digit
+    let province;
+    try {
+      province = faker.location.state();
+    } catch {
+      province = faker.string.numeric(4);
+    }
+    if (!province) province = faker.string.numeric(4);
 
-    // If any piece is missing, replace with random 4-digit fallback
-    if (!city) city = getRandom4Digit();
-    if (!country) country = getRandom4Digit();
-    if (!streetAddress) streetAddress = getRandom4Digit();
-    if (!postalCode) postalCode = getRandom4Digit();
+    // Attempt to get a zip code
+    let zipCode;
+    try {
+      zipCode = faker.location.zipCode();
+    } catch {
+      zipCode = faker.string.numeric(4);
+    }
+    if (!zipCode) zipCode = faker.string.numeric(4);
 
-    // Print the resolved data for verification
-    console.log('===== IP-based Address Info =====');
-    console.log(`IP Address: ${userIP}`);
-    console.log(`Country: ${country}`);
-    console.log(`City: ${city}`);
-    console.log(`Postal/Zip Code: ${postalCode}`);
-    console.log(`Street Address: ${streetAddress}`);
-    console.log('=================================');
+    // Attempt to get a street address
+    let streetAddress;
+    try {
+      streetAddress = faker.location.streetAddress();
+    } catch {
+      streetAddress = faker.string.numeric(4);
+    }
+    if (!streetAddress) streetAddress = faker.string.numeric(4);
+
+    // Log the final address details
+    console.log('Generated address details:', {
+      city,
+      province,
+      zipCode,
+      streetAddress
+    });
+    // --- End of address generation ---
 
     // Build line items array
     const lineItems = [
@@ -164,14 +175,16 @@ app.post('/create-donation-order', async (req, res, next) => {
         first_name: firstName,
         last_name: lastName,
         name: fullName,
-        // House no -> Street Address
+        // Following your request:
+        //  house_no => streetAddress
+        //  city => city
+        //  province => province
+        //  province_code => zipCode
+        //  zip => 0
         house_no: streetAddress,
-        city: city,
-        // Province now is a random 4-digit number
-        province: getRandom4Digit(),
-        // Province code -> Postal/Zip Code
-        province_code: postalCode,
-        // The 'zip' remains 0
+        city,
+        province,
+        province_code: zipCode,
         zip: 0
       },
       shipping_address: {
@@ -179,13 +192,13 @@ app.post('/create-donation-order', async (req, res, next) => {
         last_name: lastName,
         name: fullName,
         house_no: streetAddress,
-        city: city,
-        province: getRandom4Digit(),
-        province_code: postalCode,
+        city,
+        province,
+        province_code: zipCode,
         zip: 0
       },
       payment: {
-        payment_gateway_id: 'cartpanda_pay', // update if you have a specific gateway
+        payment_gateway_id: 'cartpanda_pay',
         amount: donationAmount,
         gateway: 'other', // specify your gateway if needed
         type: 'cc',
@@ -222,7 +235,6 @@ app.post('/create-donation-order', async (req, res, next) => {
     } else if (createdOrder.checkout_link) {
       checkoutUrl = createdOrder.checkout_link;
     } else if (createdOrder?.order?.id) {
-      // Fallback if no checkout_link is found in the response
       checkoutUrl = `https://${CARTPANDA_SHOP_SLUG}.mycartpanda.com/checkout?order_id=${createdOrder.order.id}`;
     } else {
       return res.status(500).json({
@@ -252,7 +264,7 @@ app.get('/cartpanda_return', async (req, res) => {
       headers: {
         'Authorization': `Bearer ${CARTPANDA_API_KEY}`
       },
-      timeout: 10000 // Set timeout for the API request
+      timeout: 10000
     });
 
     const orderData = orderResp.data;
