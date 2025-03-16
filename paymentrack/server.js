@@ -9,8 +9,7 @@ const {
   CARTPANDA_API_KEY,
   CARTPANDA_SHOP_SLUG,
   PORT,
-  CURRENCY,
-  USER_COUNTRY  // optional: set a default user country for orders
+  CURRENCY
 } = process.env;
 
 if (!CARTPANDA_API_KEY || !CARTPANDA_SHOP_SLUG) {
@@ -18,11 +17,8 @@ if (!CARTPANDA_API_KEY || !CARTPANDA_SHOP_SLUG) {
   process.exit(1);
 }
 
-// Use default currency "USD" if not provided and enforce uppercase ISO code.
-const DEFAULT_CURRENCY = (CURRENCY || 'USD').toUpperCase();
-
-// Use provided user country or default to "United States"
-const DEFAULT_COUNTRY = USER_COUNTRY || 'United States';
+// Use default currency "USD" if not provided.
+const DEFAULT_CURRENCY = CURRENCY || 'USD';
 
 // Create Express app
 const app = express();
@@ -39,7 +35,7 @@ app.use(cors({
   credentials: false     // Set to true if you need cookies
 }));
 
-// Explicitly handle all OPTIONS requests.
+// Explicitly handle all OPTIONS requests (again, typically cors() does this, but being explicit helps).
 app.options('*', (req, res) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS,PUT,PATCH,DELETE');
@@ -61,11 +57,12 @@ function getTomorrowDate() {
     return tomorrow.toISOString().split("T")[0];
   } catch (error) {
     console.error('Error generating tomorrow\'s date:', error);
+    // Fallback to current date if any error occurs (should not happen)
     return new Date().toISOString().split("T")[0];
   }
 }
 
-// Base URL for CartPanda API (v3)
+// Base URL for CartPanda API
 const CARTPANDA_API_BASE = 'https://accounts.cartpanda.com/api/v3';
 
 // Health check endpoint
@@ -80,12 +77,13 @@ app.get('/health', (req, res) => {
  *   donationAmount: number,
  *   variantId: number,
  *   fullName: string,
- *   email: string
+ *   email: string,
+ *   country: string  // New: The country of the user (e.g., "United States", "Brazil")
  * }
  */
 app.post('/create-donation-order', async (req, res, next) => {
   try {
-    const { donationAmount, variantId, fullName, email } = req.body;
+    const { donationAmount, variantId, fullName, email, country } = req.body;
 
     // Validate inputs
     if (!donationAmount || isNaN(donationAmount) || Number(donationAmount) <= 0) {
@@ -99,6 +97,9 @@ app.post('/create-donation-order', async (req, res, next) => {
     }
     if (!email) {
       return res.status(400).json({ error: 'Email is required' });
+    }
+    if (!country || country.trim() === "") {
+      return res.status(400).json({ error: 'Country is required' });
     }
 
     // Split fullName into firstName and lastName
@@ -132,8 +133,8 @@ app.post('/create-donation-order', async (req, res, next) => {
         city: 'N/A',
         province: 'N/A',
         province_code: 'N/A',
-        country: DEFAULT_COUNTRY,  // Set billing country based on user
-        zip: 0
+        zip: 0,
+        country: country  // Pass the user's country here
       },
       shipping_address: {
         first_name: firstName,
@@ -143,8 +144,8 @@ app.post('/create-donation-order', async (req, res, next) => {
         city: 'N/A',
         province: 'N/A',
         province_code: 'N/A',
-        country: DEFAULT_COUNTRY,  // Set shipping country based on user
-        zip: 0
+        zip: 0,
+        country: country  // Pass the user's country here
       },
       payment: {
         payment_gateway_id: 'cartpanda_pay', // update if you have a specific gateway
@@ -194,6 +195,7 @@ app.post('/create-donation-order', async (req, res, next) => {
     console.log('Created CartPanda order:', createdOrder);
     return res.json({ checkoutUrl });
   } catch (error) {
+    // Log detailed error for debugging while returning a generic message
     console.error('Error creating CartPanda order:', error.response?.data || error.message);
     return res.status(500).json({ error: 'Could not create order, please try again.' });
   }
