@@ -35,7 +35,7 @@ app.use(cors({
   credentials: false     // Set to true if you need cookies
 }));
 
-// Explicitly handle all OPTIONS requests (again, typically cors() does this, but being explicit helps).
+// Explicitly handle all OPTIONS requests.
 app.options('*', (req, res) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS,PUT,PATCH,DELETE');
@@ -56,8 +56,7 @@ function getTomorrowDate() {
     const tomorrow = new Date(Date.now() + 86400000);
     return tomorrow.toISOString().split("T")[0];
   } catch (error) {
-    console.error('Error generating tomorrow\'s date:', error);
-    // Fallback to current date if any error occurs (should not happen)
+    console.error("Error generating tomorrow's date:", error);
     return new Date().toISOString().split("T")[0];
   }
 }
@@ -78,7 +77,7 @@ app.get('/health', (req, res) => {
  *   variantId: number,
  *   fullName: string,
  *   email: string,
- *   country: string  // New: The country of the user (e.g., "United States", "Brazil")
+ *   country: string   // New: the user's country (e.g. "United States", "Brazil", etc.)
  * }
  */
 app.post('/create-donation-order', async (req, res, next) => {
@@ -115,7 +114,8 @@ app.post('/create-donation-order', async (req, res, next) => {
       }
     ];
 
-    // Build the order data using the provided currency and country
+    // Build the order data using the provided currency and country.
+    // Note: We now include dummy address fields (address1, address2) and the country field.
     const orderData = {
       email,
       phone: '0000000000', // Dummy phone if required
@@ -126,35 +126,36 @@ app.post('/create-donation-order', async (req, res, next) => {
       total_amount: donationAmount,
       line_items: lineItems,
       billing_address: {
-        first_name: firstName,
-        last_name: lastName,
-        name: fullName,
+        address1: 'N/A',
+        address2: 'N/A',
         house_no: 'N/A',
         city: 'N/A',
         province: 'N/A',
         province_code: 'N/A',
         zip: 0,
-        country: country  // Pass the user's country here
+        first_name: firstName,
+        last_name: lastName,
+        name: fullName,
+        country: country // Added country
       },
       shipping_address: {
-        first_name: firstName,
-        last_name: lastName,
-        name: fullName,
+        address1: 'N/A',
+        address2: 'N/A',
         house_no: 'N/A',
         city: 'N/A',
         province: 'N/A',
         province_code: 'N/A',
         zip: 0,
-        country: country  // Pass the user's country here
+        first_name: firstName,
+        last_name: lastName,
+        name: fullName,
+        country: country // Added country
       },
       payment: {
-        payment_gateway_id: 'cartpanda_pay', // update if you have a specific gateway
+        payment_gateway_id: 'cartpanda_pay', // Update if you have a specific gateway
         amount: donationAmount,
-        gateway: 'other', // specify your gateway if needed
-        type: 'cc',
-        boleto_link: 'N/A', // dummy data
-        boleto_code: 'N/A', // dummy data
-        boleto_limit_date: getTomorrowDate() // valid dummy date
+        gateway: 'other', // Specify your gateway if needed; allowed values include: mercadopago, ebanx, appmax, pagseguro, other
+        type: 'cc'
       },
       customer: {
         email,
@@ -173,7 +174,7 @@ app.post('/create-donation-order', async (req, res, next) => {
         'Authorization': `Bearer ${CARTPANDA_API_KEY}`,
         'Content-Type': 'application/json'
       },
-      timeout: 10000 // Set timeout to avoid hanging requests
+      timeout: 10000 // Timeout to avoid hanging requests
     });
 
     const createdOrder = apiResponse.data;
@@ -195,7 +196,6 @@ app.post('/create-donation-order', async (req, res, next) => {
     console.log('Created CartPanda order:', createdOrder);
     return res.json({ checkoutUrl });
   } catch (error) {
-    // Log detailed error for debugging while returning a generic message
     console.error('Error creating CartPanda order:', error.response?.data || error.message);
     return res.status(500).json({ error: 'Could not create order, please try again.' });
   }
@@ -214,7 +214,7 @@ app.get('/cartpanda_return', async (req, res) => {
       headers: {
         'Authorization': `Bearer ${CARTPANDA_API_KEY}`
       },
-      timeout: 10000 // Set timeout for the API request
+      timeout: 10000
     });
 
     const orderData = orderResp.data;
