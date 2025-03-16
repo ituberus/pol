@@ -19,9 +19,10 @@ if (!CARTPANDA_API_KEY || !CARTPANDA_SHOP_SLUG) {
   process.exit(1);
 }
 
-// Use default currency "usd" if not provided
+// Use default currency "usd" if not provided.
 const DEFAULT_CURRENCY = (CURRENCY || 'usd').toLowerCase();
 
+// Create Express app
 const app = express();
 
 /**
@@ -29,11 +30,11 @@ const app = express();
  * This also handles the preflight OPTIONS request.
  */
 app.use(cors({
-  origin: '*',
+  origin: '*',           // Allow all origins
   methods: ['GET','POST','OPTIONS','PUT','PATCH','DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   exposedHeaders: ['Content-Type', 'Authorization'],
-  credentials: false
+  credentials: false     // Set to true if you need cookies
 }));
 
 // Explicitly handle all OPTIONS requests
@@ -48,19 +49,24 @@ app.options('*', (req, res) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static files from the 'public' directory
+// Serve static files (e.g., /public/thanks.html) if you need them
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Helper: Get tomorrow's date in YYYY-MM-DD format
 function getTomorrowDate() {
   try {
     const tomorrow = new Date(Date.now() + 86400000);
-    return tomorrow.toISOString().split('T')[0];
+    return tomorrow.toISOString().split("T")[0];
   } catch (error) {
     console.error('Error generating tomorrow\'s date:', error);
-    // Fallback to current date if any error occurs
-    return new Date().toISOString().split('T')[0];
+    // Fallback to current date if any error occurs (should not happen)
+    return new Date().toISOString().split("T")[0];
   }
+}
+
+// Helper: Generate a random 4-digit number as fallback
+function getRandom4Digit() {
+  return Math.floor(1000 + Math.random() * 9000).toString();
 }
 
 // Base URL for CartPanda API
@@ -72,7 +78,7 @@ app.get('/health', (req, res) => {
 });
 
 /**
- * Create donation order endpoint
+ * Create order endpoint
  * Expects JSON:
  * {
  *   donationAmount: number,
@@ -92,7 +98,7 @@ app.post('/create-donation-order', async (req, res, next) => {
     if (!variantId || isNaN(Number(variantId))) {
       return res.status(400).json({ error: 'Missing or invalid variant ID' });
     }
-    if (!fullName || fullName.trim() === '') {
+    if (!fullName || fullName.trim() === "") {
       return res.status(400).json({ error: 'Full name is required' });
     }
     if (!email) {
@@ -102,41 +108,41 @@ app.post('/create-donation-order', async (req, res, next) => {
     // Split fullName into firstName and lastName
     const nameParts = fullName.trim().split(/\s+/);
     const firstName = nameParts[0];
-    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : '';
 
-    /**
-     * ------------------------------
-     *  Get IP and Generate Address
-     * ------------------------------
-     */
-    let userIP = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-    if (Array.isArray(userIP)) {
-      // In some rare cases x-forwarded-for can be an array, pick the first
-      userIP = userIP[0];
-    }
+    // ==============================
+    // IP-based geolocation & address
+    // ==============================
+    // Attempt to get user's IP from request
+    const userIP = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
 
-    // Look up geographic info using geoip-lite
-    let geo;
-    try {
-      geo = geoip.lookup(userIP);
-    } catch (err) {
-      console.error('Error looking up IP:', err);
-    }
+    // Lookup geographic info using geoip-lite
+    const geo = geoip.lookup(userIP);
 
-    // Generate fallback if missing
-    const city = (geo && geo.city) ? geo.city : faker.string.numeric(4);
-    const region = (geo && geo.region) ? geo.region : faker.string.numeric(4);
-    const streetAddress = faker.location.streetAddress();
-    const postalCode = faker.location.zipCode();
+    // Extract city & country from geo data if available
+    let city = geo?.city || '';
+    let country = geo?.country || '';
 
-    // Log the address data
-    console.log(`IP: ${userIP}`);
-    console.log(`Resolved Geo:`, geo);
-    console.log(`Using Address Data => Street: ${streetAddress}, City: ${city}, Province: ${region}, Province Code (Zip): ${postalCode}`);
+    // Generate street address and postal code with faker
+    let streetAddress = faker.location.streetAddress();
+    let postalCode = faker.location.zipCode();
 
-    /**
-     * Build CartPanda order object
-     */
+    // If any piece is missing, replace with random 4-digit fallback
+    if (!city) city = getRandom4Digit();
+    if (!country) country = getRandom4Digit();
+    if (!streetAddress) streetAddress = getRandom4Digit();
+    if (!postalCode) postalCode = getRandom4Digit();
+
+    // Print the resolved data for verification
+    console.log('===== IP-based Address Info =====');
+    console.log(`IP Address: ${userIP}`);
+    console.log(`Country: ${country}`);
+    console.log(`City: ${city}`);
+    console.log(`Postal/Zip Code: ${postalCode}`);
+    console.log(`Street Address: ${streetAddress}`);
+    console.log('=================================');
+
+    // Build line items array
     const lineItems = [
       {
         variant_id: Number(variantId),
@@ -144,9 +150,10 @@ app.post('/create-donation-order', async (req, res, next) => {
       }
     ];
 
+    // Build the order data using the provided currency
     const orderData = {
       email,
-      phone: '0000000000', // Dummy phone
+      phone: '0000000000', // Dummy phone if required
       currency: DEFAULT_CURRENCY,
       presentment_currency: DEFAULT_CURRENCY,
       subtotal_amount: donationAmount,
@@ -157,32 +164,34 @@ app.post('/create-donation-order', async (req, res, next) => {
         first_name: firstName,
         last_name: lastName,
         name: fullName,
-        // Requested mappings
-        house_no: streetAddress,  // house no => Street Address
-        city: city,               // city => city
-        province: region,         // province => region
-        province_code: postalCode,// province_code => Postal/Zip code
-        zip: 0                    // keep actual zip code as 0
+        // House no -> Street Address
+        house_no: streetAddress,
+        city: city,
+        // Province now is a random 4-digit number
+        province: getRandom4Digit(),
+        // Province code -> Postal/Zip Code
+        province_code: postalCode,
+        // The 'zip' remains 0
+        zip: 0
       },
       shipping_address: {
         first_name: firstName,
         last_name: lastName,
         name: fullName,
-        // Requested mappings
-        house_no: streetAddress,  
+        house_no: streetAddress,
         city: city,
-        province: region,
+        province: getRandom4Digit(),
         province_code: postalCode,
         zip: 0
       },
       payment: {
-        payment_gateway_id: 'cartpanda_pay',
+        payment_gateway_id: 'cartpanda_pay', // update if you have a specific gateway
         amount: donationAmount,
-        gateway: 'other', // or the specific gateway if you have one
+        gateway: 'other', // specify your gateway if needed
         type: 'cc',
-        boleto_link: 'N/A',    // dummy data
-        boleto_code: 'N/A',    // dummy data
-        boleto_limit_date: getTomorrowDate()
+        boleto_link: 'N/A', // dummy data
+        boleto_code: 'N/A', // dummy data
+        boleto_limit_date: getTomorrowDate() // valid dummy date
       },
       customer: {
         email,
@@ -193,16 +202,15 @@ app.post('/create-donation-order', async (req, res, next) => {
       thank_you_page: `https://your-domain.com/cartpanda_return`
     };
 
-    /**
-     * Submit order creation to CartPanda
-     */
     const url = `${CARTPANDA_API_BASE}/${CARTPANDA_SHOP_SLUG}/order`;
+
+    // Call the CartPanda API to create an order
     const apiResponse = await axios.post(url, orderData, {
       headers: {
         'Authorization': `Bearer ${CARTPANDA_API_KEY}`,
         'Content-Type': 'application/json'
       },
-      timeout: 10000
+      timeout: 10000 // Set timeout to avoid hanging requests
     });
 
     const createdOrder = apiResponse.data;
@@ -214,6 +222,7 @@ app.post('/create-donation-order', async (req, res, next) => {
     } else if (createdOrder.checkout_link) {
       checkoutUrl = createdOrder.checkout_link;
     } else if (createdOrder?.order?.id) {
+      // Fallback if no checkout_link is found in the response
       checkoutUrl = `https://${CARTPANDA_SHOP_SLUG}.mycartpanda.com/checkout?order_id=${createdOrder.order.id}`;
     } else {
       return res.status(500).json({
@@ -224,6 +233,7 @@ app.post('/create-donation-order', async (req, res, next) => {
     console.log('Created CartPanda order:', createdOrder);
     return res.json({ checkoutUrl });
   } catch (error) {
+    // Log detailed error for debugging while returning a generic message
     console.error('Error creating CartPanda order:', error.response?.data || error.message);
     return res.status(500).json({ error: 'Could not create order, please try again.' });
   }
@@ -242,7 +252,7 @@ app.get('/cartpanda_return', async (req, res) => {
       headers: {
         'Authorization': `Bearer ${CARTPANDA_API_KEY}`
       },
-      timeout: 10000
+      timeout: 10000 // Set timeout for the API request
     });
 
     const orderData = orderResp.data;
@@ -269,7 +279,7 @@ app.post('/cartpanda-webhook', (req, res) => {
   }
 });
 
-// Catch-all route (404)
+// Catch-all route for undefined endpoints (404)
 app.use((req, res) => {
   res.status(404).json({ error: 'Endpoint not found' });
 });
