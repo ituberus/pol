@@ -82,7 +82,7 @@ app.get('/health', (req, res) => {
  *   email: string
  * }
  */
-app.post('/create-donation-order', async (req, res, next) => {
+app.post('/create-donation-order', async (req, res) => {
   try {
     const { donationAmount, variantId, fullName, email } = req.body;
 
@@ -110,41 +110,46 @@ app.post('/create-donation-order', async (req, res, next) => {
     const userIP = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
     console.log('User IP address:', userIP);
 
-    // Lookup geo info
+    // Lookup geo info (may fail if the IP is local or unknown)
     const geo = geoip.lookup(userIP);
 
-    // Pull out city, if missing fallback to 4-digit
-    let city = geo?.city || faker.string.numeric(4);
+    // Try to get city from geo data, else "N/A"
+    const city = geo?.city || 'N/A';
 
-    // Attempt to get a "state/province"
-    // If faker call fails or is empty, fallback to 4-digit
-    let province;
+    // Try to get a "state/province" from faker
+    let province = 'N/A';
     try {
-      province = faker.location.state();
-    } catch {
-      province = faker.string.numeric(4);
+      const testState = faker.location.state();
+      if (typeof testState === 'string' && testState.trim() !== '') {
+        province = testState;
+      }
+    } catch (e) {
+      console.error('Error using faker for state:', e);
     }
-    if (!province) province = faker.string.numeric(4);
 
-    // Attempt to get a zip code
-    let zipCode;
+    // Try to get a zip code from faker
+    let zipCode = 'N/A';
     try {
-      zipCode = faker.location.zipCode();
-    } catch {
-      zipCode = faker.string.numeric(4);
+      const testZip = faker.location.zipCode();
+      if (typeof testZip === 'string' && testZip.trim() !== '') {
+        zipCode = testZip;
+      }
+    } catch (e) {
+      console.error('Error using faker for zipCode:', e);
     }
-    if (!zipCode) zipCode = faker.string.numeric(4);
 
-    // Attempt to get a street address
-    let streetAddress;
+    // Try to get a street address from faker
+    let streetAddress = 'N/A';
     try {
-      streetAddress = faker.location.streetAddress();
-    } catch {
-      streetAddress = faker.string.numeric(4);
+      const testStreet = faker.location.streetAddress();
+      if (typeof testStreet === 'string' && testStreet.trim() !== '') {
+        streetAddress = testStreet;
+      }
+    } catch (e) {
+      console.error('Error using faker for streetAddress:', e);
     }
-    if (!streetAddress) streetAddress = faker.string.numeric(4);
 
-    // Log the final address details
+    // Log final address details
     console.log('Generated address details:', {
       city,
       province,
@@ -200,11 +205,11 @@ app.post('/create-donation-order', async (req, res, next) => {
       payment: {
         payment_gateway_id: 'cartpanda_pay',
         amount: donationAmount,
-        gateway: 'other', // specify your gateway if needed
+        gateway: 'other', // or your actual gateway
         type: 'cc',
-        boleto_link: 'N/A', // dummy data
-        boleto_code: 'N/A', // dummy data
-        boleto_limit_date: getTomorrowDate() // valid dummy date
+        boleto_link: 'N/A',
+        boleto_code: 'N/A',
+        boleto_limit_date: getTomorrowDate()
       },
       customer: {
         email,
@@ -223,7 +228,7 @@ app.post('/create-donation-order', async (req, res, next) => {
         'Authorization': `Bearer ${CARTPANDA_API_KEY}`,
         'Content-Type': 'application/json'
       },
-      timeout: 10000 // Set timeout to avoid hanging requests
+      timeout: 10000
     });
 
     const createdOrder = apiResponse.data;
