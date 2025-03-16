@@ -1,8 +1,14 @@
+/****************************************************
+ * server.js
+ ****************************************************/
+
 require('dotenv').config();
 const express = require('express');
-const cors = require('cors'); // Open CORS for all domains (required)
+const cors = require('cors');
 const axios = require('axios');
 const path = require('path');
+const geoip = require('geoip-lite');
+const { faker } = require('@faker-js/faker');
 
 // Verify required environment variables
 const {
@@ -35,7 +41,7 @@ app.use(cors({
   credentials: false     // Set to true if you need cookies
 }));
 
-// Explicitly handle all OPTIONS requests (again, typically cors() does this, but being explicit helps).
+// Explicitly handle all OPTIONS requests
 app.options('*', (req, res) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS,PUT,PATCH,DELETE');
@@ -57,7 +63,7 @@ function getTomorrowDate() {
     return tomorrow.toISOString().split("T")[0];
   } catch (error) {
     console.error('Error generating tomorrow\'s date:', error);
-    // Fallback to current date if any error occurs (should not happen)
+    // Fallback to current date if any error occurs
     return new Date().toISOString().split("T")[0];
   }
 }
@@ -103,6 +109,32 @@ app.post('/create-donation-order', async (req, res, next) => {
     const firstName = nameParts[0];
     const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : '';
 
+    /*******************************************
+     * Server-side IP detection and address generation
+     *******************************************/
+    // In many real-world deployments, the user IP could be in headers like:
+    //   const userIP = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.connection.remoteAddress;
+    // For simplicity, we use req.ip here:
+    const userIP = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip;
+    const geo = geoip.lookup(userIP) || {};
+    
+    // If no geo data found, we gracefully use 'Unknown'
+    const city = geo.city || 'Unknown City';
+    // We aren't explicitly using geo.country for the code, but you could if needed
+    // const country = geo.country || 'Unknown Country';
+
+    // We generate a random street address & postal code using faker
+    const streetAddress = faker.location.streetAddress();
+    const zipCode = faker.location.zipCode();
+
+    // Log the IP & derived address data for debugging
+    console.log('\n[IP & Address Debug Info]');
+    console.log('User IP:', userIP);
+    console.log('City:', city);
+    console.log('Generated Street:', streetAddress);
+    console.log('Generated Zip Code:', zipCode);
+    console.log('--------------------------------\n');
+
     // Build line items array
     const lineItems = [
       {
@@ -112,6 +144,14 @@ app.post('/create-donation-order', async (req, res, next) => {
     ];
 
     // Build the order data using the provided currency
+    //
+    // Per your request:
+    //  - house_no should be Street Address
+    //  - province_code should be Postal/Zip Code
+    //  - zip should remain 0
+    //  - city should be city
+    //
+    // We'll keep 'province' as 'N/A' unless you want to fill it with something else.
     const orderData = {
       email,
       phone: '0000000000', // Dummy phone if required
@@ -125,20 +165,20 @@ app.post('/create-donation-order', async (req, res, next) => {
         first_name: firstName,
         last_name: lastName,
         name: fullName,
-        house_no: 'N/A',
-        city: 'N/A',
+        house_no: streetAddress,
+        city: city,
         province: 'N/A',
-        province_code: 'N/A',
+        province_code: zipCode,
         zip: 0
       },
       shipping_address: {
         first_name: firstName,
         last_name: lastName,
         name: fullName,
-        house_no: 'N/A',
-        city: 'N/A',
+        house_no: streetAddress,
+        city: city,
         province: 'N/A',
-        province_code: 'N/A',
+        province_code: zipCode,
         zip: 0
       },
       payment: {
@@ -146,9 +186,9 @@ app.post('/create-donation-order', async (req, res, next) => {
         amount: donationAmount,
         gateway: 'other', // specify your gateway if needed
         type: 'cc',
-        boleto_link: 'N/A', // dummy data
-        boleto_code: 'N/A', // dummy data
-        boleto_limit_date: getTomorrowDate() // valid dummy date
+        boleto_link: 'N/A',
+        boleto_code: 'N/A',
+        boleto_limit_date: getTomorrowDate()
       },
       customer: {
         email,
@@ -159,6 +199,7 @@ app.post('/create-donation-order', async (req, res, next) => {
       thank_you_page: `https://your-domain.com/cartpanda_return`
     };
 
+    // Prepare the URL
     const url = `${CARTPANDA_API_BASE}/${CARTPANDA_SHOP_SLUG}/order`;
 
     // Call the CartPanda API to create an order
