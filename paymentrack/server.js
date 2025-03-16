@@ -1,7 +1,3 @@
-/****************************************************
- * server.js
- ****************************************************/
-
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -23,10 +19,9 @@ if (!CARTPANDA_API_KEY || !CARTPANDA_SHOP_SLUG) {
   process.exit(1);
 }
 
-// Use default currency "usd" if not provided.
+// Use default currency "usd" if not provided
 const DEFAULT_CURRENCY = (CURRENCY || 'usd').toLowerCase();
 
-// Create Express app
 const app = express();
 
 /**
@@ -34,11 +29,11 @@ const app = express();
  * This also handles the preflight OPTIONS request.
  */
 app.use(cors({
-  origin: '*',           // Allow all origins
+  origin: '*',
   methods: ['GET','POST','OPTIONS','PUT','PATCH','DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   exposedHeaders: ['Content-Type', 'Authorization'],
-  credentials: false     // Set to true if you need cookies
+  credentials: false
 }));
 
 // Explicitly handle all OPTIONS requests
@@ -60,11 +55,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 function getTomorrowDate() {
   try {
     const tomorrow = new Date(Date.now() + 86400000);
-    return tomorrow.toISOString().split("T")[0];
+    return tomorrow.toISOString().split('T')[0];
   } catch (error) {
     console.error('Error generating tomorrow\'s date:', error);
     // Fallback to current date if any error occurs
-    return new Date().toISOString().split("T")[0];
+    return new Date().toISOString().split('T')[0];
   }
 }
 
@@ -77,7 +72,7 @@ app.get('/health', (req, res) => {
 });
 
 /**
- * Create order endpoint
+ * Create donation order endpoint
  * Expects JSON:
  * {
  *   donationAmount: number,
@@ -97,7 +92,7 @@ app.post('/create-donation-order', async (req, res, next) => {
     if (!variantId || isNaN(Number(variantId))) {
       return res.status(400).json({ error: 'Missing or invalid variant ID' });
     }
-    if (!fullName || fullName.trim() === "") {
+    if (!fullName || fullName.trim() === '') {
       return res.status(400).json({ error: 'Full name is required' });
     }
     if (!email) {
@@ -107,35 +102,41 @@ app.post('/create-donation-order', async (req, res, next) => {
     // Split fullName into firstName and lastName
     const nameParts = fullName.trim().split(/\s+/);
     const firstName = nameParts[0];
-    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : '';
+    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
 
-    /*******************************************
-     * Server-side IP detection and address generation
-     *******************************************/
-    // In many real-world deployments, the user IP could be in headers like:
-    //   const userIP = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.connection.remoteAddress;
-    // For simplicity, we use req.ip here:
-    const userIP = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip;
-    const geo = geoip.lookup(userIP) || {};
-    
-    // If no geo data found, we gracefully use 'Unknown'
-    const city = geo.city || 'Unknown City';
-    // We aren't explicitly using geo.country for the code, but you could if needed
-    // const country = geo.country || 'Unknown Country';
+    /**
+     * ------------------------------
+     *  Get IP and Generate Address
+     * ------------------------------
+     */
+    let userIP = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    if (Array.isArray(userIP)) {
+      // In some rare cases x-forwarded-for can be an array, pick the first
+      userIP = userIP[0];
+    }
 
-    // We generate a random street address & postal code using faker
+    // Look up geographic info using geoip-lite
+    let geo;
+    try {
+      geo = geoip.lookup(userIP);
+    } catch (err) {
+      console.error('Error looking up IP:', err);
+    }
+
+    // Generate fallback if missing
+    const city = (geo && geo.city) ? geo.city : faker.string.numeric(4);
+    const region = (geo && geo.region) ? geo.region : faker.string.numeric(4);
     const streetAddress = faker.location.streetAddress();
-    const zipCode = faker.location.zipCode();
+    const postalCode = faker.location.zipCode();
 
-    // Log the IP & derived address data for debugging
-    console.log('\n[IP & Address Debug Info]');
-    console.log('User IP:', userIP);
-    console.log('City:', city);
-    console.log('Generated Street:', streetAddress);
-    console.log('Generated Zip Code:', zipCode);
-    console.log('--------------------------------\n');
+    // Log the address data
+    console.log(`IP: ${userIP}`);
+    console.log(`Resolved Geo:`, geo);
+    console.log(`Using Address Data => Street: ${streetAddress}, City: ${city}, Province: ${region}, Province Code (Zip): ${postalCode}`);
 
-    // Build line items array
+    /**
+     * Build CartPanda order object
+     */
     const lineItems = [
       {
         variant_id: Number(variantId),
@@ -143,18 +144,9 @@ app.post('/create-donation-order', async (req, res, next) => {
       }
     ];
 
-    // Build the order data using the provided currency
-    //
-    // Per your request:
-    //  - house_no should be Street Address
-    //  - province_code should be Postal/Zip Code
-    //  - zip should remain 0
-    //  - city should be city
-    //
-    // We'll keep 'province' as 'N/A' unless you want to fill it with something else.
     const orderData = {
       email,
-      phone: '0000000000', // Dummy phone if required
+      phone: '0000000000', // Dummy phone
       currency: DEFAULT_CURRENCY,
       presentment_currency: DEFAULT_CURRENCY,
       subtotal_amount: donationAmount,
@@ -165,29 +157,31 @@ app.post('/create-donation-order', async (req, res, next) => {
         first_name: firstName,
         last_name: lastName,
         name: fullName,
-        house_no: streetAddress,
-        city: city,
-        province: 'N/A',
-        province_code: zipCode,
-        zip: 0
+        // Requested mappings
+        house_no: streetAddress,  // house no => Street Address
+        city: city,               // city => city
+        province: region,         // province => region
+        province_code: postalCode,// province_code => Postal/Zip code
+        zip: 0                    // keep actual zip code as 0
       },
       shipping_address: {
         first_name: firstName,
         last_name: lastName,
         name: fullName,
-        house_no: streetAddress,
+        // Requested mappings
+        house_no: streetAddress,  
         city: city,
-        province: 'N/A',
-        province_code: zipCode,
+        province: region,
+        province_code: postalCode,
         zip: 0
       },
       payment: {
-        payment_gateway_id: 'cartpanda_pay', // update if you have a specific gateway
+        payment_gateway_id: 'cartpanda_pay',
         amount: donationAmount,
-        gateway: 'other', // specify your gateway if needed
+        gateway: 'other', // or the specific gateway if you have one
         type: 'cc',
-        boleto_link: 'N/A',
-        boleto_code: 'N/A',
+        boleto_link: 'N/A',    // dummy data
+        boleto_code: 'N/A',    // dummy data
         boleto_limit_date: getTomorrowDate()
       },
       customer: {
@@ -199,16 +193,16 @@ app.post('/create-donation-order', async (req, res, next) => {
       thank_you_page: `https://your-domain.com/cartpanda_return`
     };
 
-    // Prepare the URL
+    /**
+     * Submit order creation to CartPanda
+     */
     const url = `${CARTPANDA_API_BASE}/${CARTPANDA_SHOP_SLUG}/order`;
-
-    // Call the CartPanda API to create an order
     const apiResponse = await axios.post(url, orderData, {
       headers: {
         'Authorization': `Bearer ${CARTPANDA_API_KEY}`,
         'Content-Type': 'application/json'
       },
-      timeout: 10000 // Set timeout to avoid hanging requests
+      timeout: 10000
     });
 
     const createdOrder = apiResponse.data;
@@ -230,7 +224,6 @@ app.post('/create-donation-order', async (req, res, next) => {
     console.log('Created CartPanda order:', createdOrder);
     return res.json({ checkoutUrl });
   } catch (error) {
-    // Log detailed error for debugging while returning a generic message
     console.error('Error creating CartPanda order:', error.response?.data || error.message);
     return res.status(500).json({ error: 'Could not create order, please try again.' });
   }
@@ -249,7 +242,7 @@ app.get('/cartpanda_return', async (req, res) => {
       headers: {
         'Authorization': `Bearer ${CARTPANDA_API_KEY}`
       },
-      timeout: 10000 // Set timeout for the API request
+      timeout: 10000
     });
 
     const orderData = orderResp.data;
@@ -276,7 +269,7 @@ app.post('/cartpanda-webhook', (req, res) => {
   }
 });
 
-// Catch-all route for undefined endpoints (404)
+// Catch-all route (404)
 app.use((req, res) => {
   res.status(404).json({ error: 'Endpoint not found' });
 });
