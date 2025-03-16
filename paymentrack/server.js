@@ -13,29 +13,29 @@ const {
   DEFAULT_COUNTRY
 } = process.env;
 
-// Basic validation of required env variables
+// Validate required environment variables
 if (!CARTPANDA_API_KEY || !CARTPANDA_SHOP_SLUG) {
   console.error('Error: Missing CARTPANDA_API_KEY or CARTPANDA_SHOP_SLUG in .env');
   process.exit(1);
 }
 
-// Fallbacks if not set in env
+// Set fallbacks if not provided
 const DEFAULT_CURRENCY_CODE = CURRENCY || 'USD';
 const FALLBACK_COUNTRY = DEFAULT_COUNTRY || 'US';
 
 // Create Express server
 const app = express();
 
-// CORS setup
+// CORS configuration
 app.use(cors({
   origin: '*',
-  methods: ['GET','POST','OPTIONS','PUT','PATCH','DELETE'],
+  methods: ['GET', 'POST', 'OPTIONS', 'PUT', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   exposedHeaders: ['Content-Type', 'Authorization'],
   credentials: false
 }));
 
-// Explicitly allow OPTIONS
+// Explicitly allow OPTIONS requests
 app.options('*', (req, res) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS,PUT,PATCH,DELETE');
@@ -47,47 +47,47 @@ app.options('*', (req, res) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static files (if you have a public folder)
+// Serve static files (if needed)
 app.use(express.static(path.join(__dirname, 'public')));
 
 /**
- * Helper: Returns tomorrow's date in YYYY-MM-DD (if you ever need it for "boleto" type).
- * Currently not used for CC payments, but you can leave it if you ever switch to a boleto flow.
+ * Helper: Get tomorrow's date in YYYY-MM-DD format.
+ * This is used as a dummy boleto limit date.
  */
 function getTomorrowDate() {
   try {
     const tomorrow = new Date(Date.now() + 86400000);
     return tomorrow.toISOString().split('T')[0];
   } catch (error) {
-    console.error('Error generating tomorrow\'s date:', error);
-    return new Date().toISOString().split('T')[0]; // fallback
+    console.error("Error generating tomorrow's date:", error);
+    return new Date().toISOString().split('T')[0];
   }
 }
 
-// Base URL for CartPanda v3 API
+// Base URL for CartPanda API
 const CARTPANDA_API_BASE = 'https://accounts.cartpanda.com/api/v3';
 
-// Health-check route
+// Health-check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'OK' });
 });
 
 /**
- * POST /create-donation-order
- * Body expected:
+ * Create order endpoint
+ * Expected JSON body:
  * {
  *   donationAmount: number,
  *   variantId: number,
  *   fullName: string,
  *   email: string,
- *   country?: string   (optional; fallback used if not provided)
+ *   country?: string  // Optional; fallback used if missing
  * }
  */
 app.post('/create-donation-order', async (req, res) => {
   try {
     const { donationAmount, variantId, fullName, email, country } = req.body;
 
-    // Basic validations
+    // Validate inputs
     if (!donationAmount || isNaN(donationAmount) || Number(donationAmount) <= 0) {
       return res.status(400).json({ error: 'Invalid donation amount' });
     }
@@ -101,15 +101,15 @@ app.post('/create-donation-order', async (req, res) => {
       return res.status(400).json({ error: 'Email is required' });
     }
 
-    // Decide on the country (use fallback if none is passed)
+    // Use provided country or fallback if not provided
     const userCountry = (country && country.trim() !== '') ? country.trim() : FALLBACK_COUNTRY;
 
-    // Split full name into first/last
+    // Split fullName into first and last names
     const nameParts = fullName.trim().split(/\s+/);
     const firstName = nameParts[0];
     const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
 
-    // Prepare line items
+    // Build line items array
     const lineItems = [
       {
         variant_id: Number(variantId),
@@ -117,18 +117,18 @@ app.post('/create-donation-order', async (req, res) => {
       }
     ];
 
-    // Build request body to create order in CartPanda
+    // Build order data with all required fields.
+    // Dummy address fields are provided as required by CartPanda.
+    // The payment object includes dummy boleto values to satisfy validation.
     const orderData = {
       email,
-      phone: '0000000000', // Dummy phone for simplicity
-      currency: DEFAULT_CURRENCY_CODE,           // e.g. "USD"
-      presentment_currency: DEFAULT_CURRENCY_CODE, // e.g. "USD"
+      phone: '0000000000', // Dummy phone number
+      currency: DEFAULT_CURRENCY_CODE,           // e.g., "USD"
+      presentment_currency: DEFAULT_CURRENCY_CODE, // e.g., "USD"
       subtotal_amount: donationAmount,
       products_total_amount: donationAmount,
       total_amount: donationAmount,
       line_items: lineItems,
-
-      // Minimal required fields for addresses:
       billing_address: {
         address1: 'N/A',
         address2: 'N/A',
@@ -155,27 +155,25 @@ app.post('/create-donation-order', async (req, res) => {
         name: fullName,
         country: userCountry
       },
-
-      // Payment data
       payment: {
-        payment_gateway_id: 'cartpanda_pay', // Adjust if you have a real gateway ID
+        payment_gateway_id: 'cartpanda_pay', // Update if you have a specific gateway
         amount: donationAmount,
-        gateway: 'other',  // or 'mercadopago', 'ebanx', etc. if you integrate them
-        type: 'cc'         // "cc" for credit card. If you do "boleto" you'd need boleto fields
+        gateway: 'other', // Allowed values: mercadopago, ebanx, appmax, pagseguro, other
+        type: 'cc',       // Payment type is credit card
+        // Dummy boleto fields to satisfy API requirements:
+        boleto_link: 'N/A',
+        boleto_code: 'N/A',
+        boleto_limit_date: getTomorrowDate()
       },
-
-      // Customer data
       customer: {
         email,
         first_name: firstName,
         last_name: lastName
       },
-
-      // The URL CartPanda will redirect to after checkout is completed
+      // Replace with your actual return URL domain
       thank_you_page: 'https://your-domain.com/cartpanda_return'
     };
 
-    // Hit the CartPanda Create Order endpoint
     const url = `${CARTPANDA_API_BASE}/${CARTPANDA_SHOP_SLUG}/order`;
     const apiResponse = await axios.post(url, orderData, {
       headers: {
@@ -185,16 +183,15 @@ app.post('/create-donation-order', async (req, res) => {
       timeout: 10000
     });
 
-    // Check response for checkout link
     const createdOrder = apiResponse.data;
     let checkoutUrl = '';
 
+    // Determine checkout URL from API response
     if (createdOrder?.order?.checkout_link) {
       checkoutUrl = createdOrder.order.checkout_link;
     } else if (createdOrder.checkout_link) {
       checkoutUrl = createdOrder.checkout_link;
     } else if (createdOrder?.order?.id) {
-      // Fallback: build direct checkout link
       checkoutUrl = `https://${CARTPANDA_SHOP_SLUG}.mycartpanda.com/checkout?order_id=${createdOrder.order.id}`;
     } else {
       return res.status(500).json({
@@ -211,9 +208,8 @@ app.post('/create-donation-order', async (req, res) => {
 });
 
 /**
- * GET /cartpanda_return
- * After payment, CartPanda will redirect here with ?order_id=
- * We can verify final payment status.
+ * Return endpoint for final verification
+ * CartPanda redirects here with ?order_id= after payment.
  */
 app.get('/cartpanda_return', async (req, res) => {
   try {
@@ -222,7 +218,6 @@ app.get('/cartpanda_return', async (req, res) => {
       return res.redirect('/error.html');
     }
 
-    // Grab the order details from CartPanda
     const orderUrl = `${CARTPANDA_API_BASE}/${CARTPANDA_SHOP_SLUG}/order/${orderId}`;
     const orderResp = await axios.get(orderUrl, {
       headers: {
@@ -232,10 +227,8 @@ app.get('/cartpanda_return', async (req, res) => {
     });
 
     const orderData = orderResp.data;
-    // According to docs: payment_status = 3 means PAID
+    // Payment status 3 indicates PAID (adjust if needed)
     const paid = (orderData?.payment_status === 3 || orderData?.status_id === '3');
-
-    // Redirect user based on final payment status
     return paid ? res.redirect('/thanks.html') : res.redirect('/error.html');
   } catch (error) {
     console.error('Error verifying order status:', error.response?.data || error.message);
@@ -243,7 +236,7 @@ app.get('/cartpanda_return', async (req, res) => {
   }
 });
 
-// Optional: Webhook endpoint
+// Optional: Webhook endpoint to receive notifications from CartPanda
 app.post('/cartpanda-webhook', (req, res) => {
   try {
     const eventName = req.body.event;
@@ -256,7 +249,7 @@ app.post('/cartpanda-webhook', (req, res) => {
   }
 });
 
-// Catch-all route for unknown endpoints
+// Catch-all route for undefined endpoints
 app.use((req, res) => {
   res.status(404).json({ error: 'Endpoint not found' });
 });
@@ -275,7 +268,7 @@ process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception thrown:', err);
 });
 
-// Start server
+// Start the server
 const port = PORT || 3000;
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
