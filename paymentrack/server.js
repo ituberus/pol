@@ -162,7 +162,7 @@ app.post('/create-donation-order', async (req, res) => {
       city: finalCity,
       province: finalProv,
       province_code: finalProvCode,
-      zip: finalZip,
+      zip: "",
       street: finalStreet
     });
 
