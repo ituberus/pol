@@ -33,14 +33,14 @@ const app = express();
  * This also handles the preflight OPTIONS request.
  */
 app.use(cors({
-  origin: '*',           
+  origin: '*',
   methods: ['GET', 'POST', 'OPTIONS', 'PUT', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   exposedHeaders: ['Content-Type', 'Authorization'],
-  credentials: false     
+  credentials: false
 }));
 
-// Explicitly handle all OPTIONS requests (again, typically cors() does this automatically).
+// Explicitly handle all OPTIONS requests.
 app.options('*', (req, res) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS,PUT,PATCH,DELETE');
@@ -70,8 +70,7 @@ function getTomorrowDate() {
 
 /**
  * (Optional) Map ISO country codes (e.g., "US", "BR") to a full name 
- * that CartPanda might expect in "country" fields. 
- * If you have more countries, add them here; default to "United States."
+ * that CartPanda might expect in "country" fields.
  */
 function mapISOToCountry(isoCode) {
   const map = {
@@ -79,8 +78,8 @@ function mapISOToCountry(isoCode) {
     BR: 'Brazil',
     CA: 'Canada',
     GB: 'United Kingdom',
-    AU: 'Australia',
-    // ... add more if needed
+    AU: 'Australia'
+    // add more mappings if needed
   };
   return map[isoCode.toUpperCase()] || 'United States';
 }
@@ -94,14 +93,14 @@ app.get('/health', (req, res) => {
 });
 
 /**
- * Create order endpoint
- * Expects JSON:
- * {
- *   donationAmount: number,
- *   variantId: number,
- *   fullName: string,
- *   email: string
- * }
+ * POST /create-donation-order
+ * Body:
+ *  {
+ *    donationAmount: number,
+ *    variantId: number,
+ *    fullName: string,
+ *    email: string
+ *  }
  */
 app.post('/create-donation-order', async (req, res) => {
   try {
@@ -133,29 +132,35 @@ app.post('/create-donation-order', async (req, res) => {
       '';
     console.log('Detected user IP:', userIP);
 
-    // === 2) Geo lookup (returns something like { country: 'US', region: 'CA', city: 'San Francisco', ... })
+    // === 2) Geo lookup
+    // e.g., { country: 'US', region: 'IN', city: 'Indianapolis', ... }
     const geo = geoip.lookup(userIP);
-    
-    // If GeoIP fails or the IP is local, geo will be null/undefined
-    const isoCode = geo && geo.country ? geo.country : 'US'; 
+
+    // If GeoIP fails or the IP is local, geo might be null
+    const isoCode = geo && geo.country ? geo.country : 'US';
     const finalCountry = mapISOToCountry(isoCode);
 
+    // We'll use the region code (2-letter code) from geo for province_code.
+    // If missing, fallback to "XX".
+    let finalProvCode = 'XX';
+    if (geo && typeof geo.region === 'string' && geo.region.trim()) {
+      finalProvCode = geo.region.trim().toUpperCase();
+    }
+
     // === 3) Generate random address details if none are discovered
-    // city
-    let finalCity = (geo && geo.city && geo.city.trim()) 
-                      ? geo.city.trim() 
-                      : faker.location.city();
-    // province (use a random state if not found)
-    let finalProv = faker.location.state();
-    // zip
-    let finalZip = faker.location.zipCode();
-    // street
-    let finalStreet = faker.location.streetAddress();
+    const finalCity = (geo && geo.city && geo.city.trim()) 
+      ? geo.city.trim()
+      : faker.location.city();
+    const finalProv = faker.location.state();      // spelled-out state name
+    const finalZip = faker.location.zipCode();
+    const finalStreet = faker.location.streetAddress();
 
     console.log('Geo-based address =>', {
+      ip: userIP,
       country: finalCountry,
       city: finalCity,
       province: finalProv,
+      province_code: finalProvCode,
       zip: finalZip,
       street: finalStreet
     });
@@ -168,10 +173,10 @@ app.post('/create-donation-order', async (req, res) => {
       }
     ];
 
-    // === 5) Build the order data using the provided currency & fake address
+    // === 5) Build the order data
     const orderData = {
       email,
-      phone: '0000000000', 
+      phone: '0000000000',
       currency: DEFAULT_CURRENCY,
       presentment_currency: DEFAULT_CURRENCY,
       subtotal_amount: donationAmount,
@@ -179,33 +184,26 @@ app.post('/create-donation-order', async (req, res) => {
       total_amount: donationAmount,
       line_items: lineItems,
 
-      // ------------------------------
-      // Billing Address
-      // ------------------------------
       billing_address: {
         address1: finalStreet,
-        address2: '', 
-        house_no: finalStreet,      // or separate number if you want
+        address2: '',
+        house_no: finalStreet, 
         city: finalCity,
         province: finalProv,
-        province_code: '',          // if you have an actual 2-letter state code, put it here
+        province_code: finalProvCode, // <-- not empty now
         zip: finalZip,
         first_name: firstName,
         last_name: lastName,
         name: fullName,
-        country: finalCountry       // CRITICAL: must specify full country name for the order
+        country: finalCountry
       },
-
-      // ------------------------------
-      // Shipping Address
-      // ------------------------------
       shipping_address: {
         address1: finalStreet,
         address2: '',
         house_no: finalStreet,
         city: finalCity,
         province: finalProv,
-        province_code: '',
+        province_code: finalProvCode, // <-- not empty now
         zip: finalZip,
         first_name: firstName,
         last_name: lastName,
@@ -213,24 +211,20 @@ app.post('/create-donation-order', async (req, res) => {
         country: finalCountry
       },
 
-      // ------------------------------
-      // Payment: Only Credit Card
-      // ------------------------------
       payment: {
-        payment_gateway_id: 'cartpanda_pay', // or your real gateway ID if different
+        payment_gateway_id: 'cartpanda_pay', // or your real gateway ID
         amount: donationAmount,
-        gateway: 'other',       // allowed: "mercadopago", "ebanx", "appmax", "pagseguro", or "other"
-        type: 'cc'             // "cc" = credit card (no boleto fields needed)
+        gateway: 'other', // could be "mercadopago", "ebanx", etc.
+        type: 'cc'       // credit card
       },
 
-      // Customer object
       customer: {
         email,
         first_name: firstName,
         last_name: lastName
       },
 
-      // Thank You Page (your domain after success)
+      // Replace with your domain if needed
       thank_you_page: `https://${CARTPANDA_SHOP_SLUG}.mycartpanda.com/cartpanda_return`
     };
 
@@ -271,9 +265,8 @@ app.post('/create-donation-order', async (req, res) => {
 });
 
 /**
- * Return endpoint for final verification
- * If the order is paid, we redirect to /thanks.html
- * Otherwise, we redirect to /error.html
+ * GET /cartpanda_return
+ * Final verification
  */
 app.get('/cartpanda_return', async (req, res) => {
   try {
@@ -321,7 +314,7 @@ app.post('/cartpanda-webhook', (req, res) => {
 });
 
 /**
- * Catch-all for undefined endpoints
+ * Catch-all route for undefined endpoints
  */
 app.use((req, res) => {
   res.status(404).json({ error: 'Endpoint not found' });
