@@ -215,7 +215,9 @@ app.post('/create-donation-order', async (req, res) => {
         province: finalProv,
         zip: finalZip,
         province_code: finalProvCode,
-        country: finalCountry
+        country: finalCountry,
+        first_name: firstName,     // Added first name
+        last_name: lastName        // Added last name
       },
       billing_address: {
         address1: finalStreet,
