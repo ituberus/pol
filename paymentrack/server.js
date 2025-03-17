@@ -19,7 +19,10 @@ if (!CARTPANDA_API_KEY || !CARTPANDA_SHOP_SLUG) {
   process.exit(1);
 }
 
-// Use default currency "USD" if not provided, ensuring uppercase.
+/**
+ * Use default currency "USD" if not provided,
+ * ensuring uppercase (CartPanda requires ISO 4217 codes).
+ */
 const DEFAULT_CURRENCY = (CURRENCY || 'USD').toUpperCase();
 
 // Create Express app
@@ -57,27 +60,29 @@ function getTomorrowDate() {
     const tomorrow = new Date(Date.now() + 86400000);
     return tomorrow.toISOString().split('T')[0];
   } catch (error) {
-    console.error("Error generating tomorrow's date:", error);
+    console.error('Error generating tomorrow\'s date:', error);
     return new Date().toISOString().split('T')[0];
   }
 }
 
 /**
- * Map an ISO country code (e.g., "US", "BR") to the full country name.
+ * Map an ISO country code (e.g., "US", "BR") to the
+ * full country name CartPanda expects in "country" fields.
  */
 function mapISOToCountry(isoCode) {
   const map = {
     US: 'United States',
-    BR: 'Brasil',
+    BR: 'Brazil',
     CA: 'Canada',
     GB: 'United Kingdom',
     AU: 'Australia'
+    // Add more mappings as needed
   };
   return map[isoCode.toUpperCase()] || 'United States';
 }
 
-// Base URL for CartPanda API v1
-const CARTPANDA_API_BASE = 'https://accounts.cartpanda.com/api';
+// Base URL for CartPanda API (v3)
+const CARTPANDA_API_BASE = 'https://accounts.cartpanda.com/api/v3';
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -117,14 +122,14 @@ app.post('/create-donation-order', async (req, res) => {
     const firstName = nameParts[0];
     const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
 
-    // Get user IP (try multiple headers; fallback to socket address)
+    // === 1) Get user IP (try multiple headers; fallback to socket address)
     const userIP =
       (req.headers['x-forwarded-for']?.split(',')[0]?.trim()) ||
       req.socket.remoteAddress ||
       '';
     console.log('Detected user IP:', userIP);
 
-    // Geo lookup
+    // === 2) Geo lookup
     const geo = geoip.lookup(userIP);
     const isoCode = (geo && geo.country) ? geo.country : 'US';
     const finalCountry = mapISOToCountry(isoCode);
@@ -136,7 +141,9 @@ app.post('/create-donation-order', async (req, res) => {
     }
 
     // Use geo if available; otherwise, generate random details
-    const finalCity = (geo && geo.city && geo.city.trim()) ? geo.city.trim() : faker.location.city();
+    const finalCity = (geo && geo.city && geo.city.trim())
+      ? geo.city.trim()
+      : faker.location.city();
     const finalProv = faker.location.state();
     const finalZip = faker.location.zipCode();
     const finalStreet = faker.location.streetAddress();
@@ -151,7 +158,7 @@ app.post('/create-donation-order', async (req, res) => {
       street: finalStreet
     });
 
-    // Build line items
+    // === 3) Build line items
     const lineItems = [
       {
         variant_id: Number(variantId),
@@ -159,71 +166,57 @@ app.post('/create-donation-order', async (req, res) => {
       }
     ];
 
-    // Build unique tokens and random phone
+    // === 4) Build unique tokens and random phone
     const uniqueCartToken = faker.string.uuid();
     const uniqueCustomerToken = faker.string.uuid();
-    const randomPhone = faker.phone.number('+###########');
+    const randomPhone = faker.phone.number('+###########'); // e.g. +17205550123
 
-    /**
-     * v1 requires many fields. For unused values (like discount), we pass empty strings or zero.
-     * Note: Adjust dummy values as needed.
-     */
+    // === 5) Build the order data with additional uniqueness
     const orderData = {
-      cart_token: uniqueCartToken,
-      currency: DEFAULT_CURRENCY,
-      discount_code: '',
       email,
       phone: randomPhone,
+      currency: DEFAULT_CURRENCY,
       presentment_currency: DEFAULT_CURRENCY,
       subtotal_amount: donationAmount,
-      card_token: 'random-card-token',
-      customer_token: uniqueCustomerToken,
-      order_discount: 0,
       products_total_amount: donationAmount,
       total_amount: donationAmount,
-      payment_status: 'paid',
+
+      // Unique tokens to avoid duplicate order detection
+      cart_token: uniqueCartToken,
+      customer_token: uniqueCustomerToken,
+
       line_items: lineItems,
-      shipping_address: {
-        address1: finalStreet,
-        address2: 'N/A',
-        address: finalStreet,
-        house_no: '123',
-        compartment: 'N/A',
-        neighborhood: 'N/A',
-        city: finalCity,
-        company: 'N/A',
-        first_name: firstName,
-        last_name: lastName,
-        phone: randomPhone,
-        province: finalProv,
-        zip: Number(finalZip.replace(/\D/g, '') || '99999'),
-        name: fullName,
-        province_code: finalProvCode
-      },
+
       billing_address: {
         address1: finalStreet,
-        address2: 'N/A',
-        address: finalStreet,
-        house_no: '123',
-        compartment: 'N/A',
-        neighborhood: 'N/A',
+        address2: '',
+        house_no: finalStreet,
         city: finalCity,
-        company: 'N/A',
+        province: finalProv,
+        province_code: finalProvCode,
+        zip: finalZip,
         first_name: firstName,
         last_name: lastName,
-        phone: randomPhone,
-        province: finalProv,
-        zip: Number(finalZip.replace(/\D/g, '') || '99999'),
         name: fullName,
-        province_code: finalProvCode
+        country: finalCountry
       },
-      shipping: {
-        price: 0,
-        source: 'Donation',
-        title: 'No Shipping Needed'
+      shipping_address: {
+        address1: finalStreet,
+        address2: '',
+        house_no: finalStreet,
+        city: finalCity,
+        province: finalProv,
+        province_code: finalProvCode,
+        zip: finalZip,
+        first_name: firstName,
+        last_name: lastName,
+        name: fullName,
+        country: finalCountry
       },
+
+      // Payment details (using dummy boleto fields for "other" gateway)
       payment: {
-        payment_gateway_id: 'random-payment-gateway-id',
+        payment_gateway_id: 'cartpanda_pay',
         amount: donationAmount,
         gateway: 'other',
         type: 'cc',
@@ -231,27 +224,28 @@ app.post('/create-donation-order', async (req, res) => {
         boleto_code: 'N/A',
         boleto_limit_date: getTomorrowDate()
       },
-      discount: {
-        value: 0,
-        amount: 0,
-        value_type: 'fixed_amount',
-        note: 'No discount used'
-      },
+
       customer: {
-        id: 0,
         email,
         first_name: firstName,
-        last_name: lastName,
-        cpf: 123456789
+        last_name: lastName
       },
-      tags: ['Donation', 'Auto-created']
+
+      // Pass client_details as a string (not an object)
+      client_details: IP: ${userIP} | UA: ${req.headers['user-agent'] || 'N/A'},
+
+      // Add an order note with a unique timestamp and random UUID to further break duplicates
+      order_note: ${Date.now()}-${faker.string.uuid()},
+
+      // Optional "thank you" page override
+      thank_you_page: https://${CARTPANDA_SHOP_SLUG}.mycartpanda.com/cartpanda_return
     };
 
-    // Send the Create-Order request to CartPanda v1
-    const url = `${CARTPANDA_API_BASE}/${CARTPANDA_SHOP_SLUG}/order`;
+    // === 6) Send the Create-Order request to CartPanda
+    const url = ${CARTPANDA_API_BASE}/${CARTPANDA_SHOP_SLUG}/order;
     const apiResponse = await axios.post(url, orderData, {
       headers: {
-        Authorization: `Bearer ${CARTPANDA_API_KEY}`,
+        Authorization: Bearer ${CARTPANDA_API_KEY},
         'Content-Type': 'application/json'
       },
       timeout: 10000
@@ -260,17 +254,23 @@ app.post('/create-donation-order', async (req, res) => {
     const createdOrder = apiResponse.data;
     console.log('Created CartPanda order:', createdOrder);
 
+    // === 7) Determine the checkout URL from the response
     let checkoutUrl = '';
-    if (createdOrder?.order?.thank_you_page) {
-      checkoutUrl = createdOrder.order.thank_you_page;
+    if (createdOrder?.order?.checkout_link) {
+      checkoutUrl = createdOrder.order.checkout_link;
+    } else if (createdOrder.checkout_link) {
+      checkoutUrl = createdOrder.checkout_link;
+    } else if (createdOrder?.order?.id) {
+      checkoutUrl = https://${CARTPANDA_SHOP_SLUG}.mycartpanda.com/checkout?order_id=${createdOrder.order.id};
     } else {
       return res.status(500).json({
-        error: 'No thank_you_page returned from CartPanda. Cannot redirect to payment.'
+        error: 'No checkout URL returned from CartPanda. Cannot redirect to payment.'
       });
     }
 
-    // Return the thank_you_page URL to the frontend
+    // === 8) Return the checkout URL to your frontend
     return res.json({ checkoutUrl });
+
   } catch (error) {
     console.error('Error creating CartPanda order:', error.response?.data || error.message);
     return res.status(500).json({ error: 'Could not create order, please try again.' });
@@ -288,17 +288,19 @@ app.get('/cartpanda_return', async (req, res) => {
       return res.redirect('/error.html');
     }
 
-    const orderUrl = `${CARTPANDA_API_BASE}/${CARTPANDA_SHOP_SLUG}/order/${orderId}`;
+    const orderUrl = ${CARTPANDA_API_BASE}/${CARTPANDA_SHOP_SLUG}/order/${orderId};
     const orderResp = await axios.get(orderUrl, {
       headers: {
-        Authorization: `Bearer ${CARTPANDA_API_KEY}`
+        Authorization: Bearer ${CARTPANDA_API_KEY}
       },
       timeout: 10000
     });
 
     const orderData = orderResp.data;
-    const isPaid = orderData?.order?.payment_status === 'paid' || orderData?.order?.status_id === 3;
-    if (isPaid) {
+    // Payment status: 3 => Paid
+    const paid = (orderData?.payment_status === 3 || orderData?.status_id === '3');
+
+    if (paid) {
       return res.redirect('/thanks.html');
     } else {
       return res.redirect('/error.html');
@@ -310,7 +312,7 @@ app.get('/cartpanda_return', async (req, res) => {
 });
 
 /**
- * Optional webhook endpoint
+ * Webhook endpoint (optional)
  */
 app.post('/cartpanda-webhook', (req, res) => {
   try {
@@ -324,18 +326,24 @@ app.post('/cartpanda-webhook', (req, res) => {
   }
 });
 
-// Catch-all route for undefined endpoints
+/**
+ * Catch-all route for undefined endpoints
+ */
 app.use((req, res) => {
   res.status(404).json({ error: 'Endpoint not found' });
 });
 
-// Global error handling middleware
+/**
+ * Global error handling middleware
+ */
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
   res.status(500).json({ error: 'Internal server error' });
 });
 
-// Process-level error handlers
+/**
+ * Process-level error handlers
+ */
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
@@ -346,5 +354,5 @@ process.on('uncaughtException', (err) => {
 // Start the server
 const port = PORT || 3000;
 app.listen(port, () => {
-  console.log(`Server running on http://localhost:${port}`);
+  console.log(Server running on http://localhost:${port});
 });
