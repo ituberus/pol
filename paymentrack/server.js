@@ -188,7 +188,7 @@ app.post('/create-donation-order', async (req, res) => {
     const orderData = {
       // Basic info
       email,
-      phone: randomPhone,
+      phone: "",
       currency: DEFAULT_CURRENCY,
       presentment_currency: DEFAULT_CURRENCY,
 
