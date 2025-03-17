@@ -1,14 +1,8 @@
-/****************************************************
- * server.js
- * (Your original code + IP-based address generation)
- ****************************************************/
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors'); // Open CORS for all domains (required)
 const axios = require('axios');
 const path = require('path');
-
-// >>> NEW IMPORTS FOR IP & FAKE DATA <<<
 const geoip = require('geoip-lite');
 const { faker } = require('@faker-js/faker');
 
@@ -70,6 +64,67 @@ function getTomorrowDate() {
   }
 }
 
+// Helper: Generate address information based on IP address
+async function generateAddressFromIP(ipAddress) {
+  try {
+    console.log('Generating address for IP:', ipAddress);
+    
+    // Look up geographic info using geoip-lite
+    const geo = geoip.lookup(ipAddress);
+    let city = 'Unknown City';
+    let country = 'Unknown Country';
+    
+    if (geo) {
+      city = geo.city || city;
+      country = geo.country || country;
+      console.log('GeoIP lookup results:', { city, country });
+    } else {
+      console.log('No geolocation data found for IP:', ipAddress);
+    }
+    
+    // Generate random street address, province and zip code using faker.location API
+    const streetAddress = geo ? faker.location.streetAddress() : String(Math.floor(1000 + Math.random() * 9000));
+    const zipCode = geo ? faker.location.zipCode() : String(Math.floor(1000 + Math.random() * 9000));
+    const province = faker.location.state();
+    const provinceCode = faker.location.stateAbbr();
+    
+    // Organize the address data into separate fields
+    const addressData = {
+      country,
+      city: city !== 'Unknown City' ? city : String(Math.floor(1000 + Math.random() * 9000)),
+      zipCode,
+      streetAddress,
+      province: province || String(Math.floor(1000 + Math.random() * 9000)),
+      provinceCode: provinceCode || String(Math.floor(1000 + Math.random() * 9000))
+    };
+    
+    console.log('Generated address data:', addressData);
+    return addressData;
+  } catch (error) {
+    console.error('Error generating address from IP:', error);
+    // Fallback to random values if anything fails
+    return {
+      country: String(Math.floor(1000 + Math.random() * 9000)),
+      city: String(Math.floor(1000 + Math.random() * 9000)),
+      zipCode: String(Math.floor(1000 + Math.random() * 9000)),
+      streetAddress: String(Math.floor(1000 + Math.random() * 9000)),
+      province: String(Math.floor(1000 + Math.random() * 9000)),
+      provinceCode: String(Math.floor(1000 + Math.random() * 9000))
+    };
+  }
+}
+
+// Helper: Get client IP address from request
+function getClientIP(req) {
+  const ip = req.headers['x-forwarded-for'] || 
+             req.connection.remoteAddress || 
+             req.socket.remoteAddress || 
+             req.connection.socket?.remoteAddress;
+             
+  // Clean up IPv6 prefix if present
+  return ip ? ip.replace(/^::ffff:/, '') : '127.0.0.1';
+}
+
 // Base URL for CartPanda API
 const CARTPANDA_API_BASE = 'https://accounts.cartpanda.com/api/v3';
 
@@ -106,76 +161,17 @@ app.post('/create-donation-order', async (req, res, next) => {
       return res.status(400).json({ error: 'Email is required' });
     }
 
+    // Get client IP address
+    const clientIP = getClientIP(req);
+    console.log('Client IP address detected:', clientIP);
+    
+    // Generate address based on IP
+    const addressData = await generateAddressFromIP(clientIP);
+
     // Split fullName into firstName and lastName
     const nameParts = fullName.trim().split(/\s+/);
     const firstName = nameParts[0];
     const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : '';
-
-    // >>>> NEW: IP-based address generation <<<<
-    // 1) Get user IP from x-forwarded-for or fallback
-    const userIP = req.headers['x-forwarded-for']?.split(',')[0]?.trim() 
-                   || req.socket.remoteAddress 
-                   || '';
-    console.log('Detected user IP:', userIP);
-
-    // 2) Geo lookup
-    const geo = geoip.lookup(userIP);
-    
-    // 3) Build our new address fields (with fallback)
-    let finalStreet = 'N/A';
-    let finalCity   = 'N/A';
-    let finalProv   = 'N/A';
-    let finalZip    = 'N/A';
-
-    // city from geo or fallback
-    if (geo && geo.city && geo.city.trim()) {
-      finalCity = geo.city.trim();
-    } else {
-      // fallback to random 4-digit
-      finalCity = faker.string.numeric(4);
-    }
-
-    // province from faker or fallback
-    try {
-      const testProvince = faker.location.state();
-      if (testProvince && testProvince.trim()) {
-        finalProv = testProvince.trim();
-      } else {
-        finalProv = faker.string.numeric(4);
-      }
-    } catch {
-      finalProv = faker.string.numeric(4);
-    }
-
-    // zip code from faker or fallback
-    try {
-      const testZip = faker.location.zipCode();
-      if (testZip && testZip.trim()) {
-        finalZip = testZip.trim();
-      } else {
-        finalZip = faker.string.numeric(4);
-      }
-    } catch {
-      finalZip = faker.string.numeric(4);
-    }
-
-    // street address from faker or fallback
-    try {
-      const testStreet = faker.location.streetAddress();
-      if (testStreet && testStreet.trim()) {
-        finalStreet = testStreet.trim();
-      } else {
-        finalStreet = faker.string.numeric(4);
-      }
-    } catch {
-      finalStreet = faker.string.numeric(4);
-    }
-
-    // Just to debug in logs:
-    console.log('Generated Address =>', {
-      finalStreet, finalCity, finalProv, finalZip
-    });
-    // >>>> END of new IP-based code <<<<
 
     // Build line items array
     const lineItems = [
@@ -186,7 +182,6 @@ app.post('/create-donation-order', async (req, res, next) => {
     ];
 
     // Build the order data using the provided currency
-    // >>> We override the 'N/A' fields with our new data <<<
     const orderData = {
       email,
       phone: '0000000000', // Dummy phone if required
@@ -200,21 +195,21 @@ app.post('/create-donation-order', async (req, res, next) => {
         first_name: firstName,
         last_name: lastName,
         name: fullName,
-        house_no: finalStreet,      // replaced 'N/A' with finalStreet
-        city: finalCity,            // replaced 'N/A' with finalCity
-        province: finalProv,        // replaced 'N/A' with finalProv
-        province_code: finalZip,    // replaced 'N/A' with finalZip
-        zip: 0                      // remains zero as you wanted
+        house_no: addressData.streetAddress,  // Replace N/A with street address
+        city: addressData.city,               // Replace N/A with city
+        province: addressData.province,       // Replace N/A with province
+        province_code: addressData.provinceCode, // Replace N/A with province code
+        zip: 0                               // Keep as 0 as requested
       },
       shipping_address: {
         first_name: firstName,
         last_name: lastName,
         name: fullName,
-        house_no: finalStreet,
-        city: finalCity,
-        province: finalProv,
-        province_code: finalZip,
-        zip: 0
+        house_no: addressData.streetAddress,  // Replace N/A with street address
+        city: addressData.city,               // Replace N/A with city
+        province: addressData.province,       // Replace N/A with province
+        province_code: addressData.provinceCode, // Replace N/A with province code
+        zip: 0                               // Keep as 0 as requested
       },
       payment: {
         payment_gateway_id: 'cartpanda_pay', // update if you have a specific gateway
@@ -234,6 +229,8 @@ app.post('/create-donation-order', async (req, res, next) => {
       thank_you_page: `https://your-domain.com/cartpanda_return`
     };
 
+    console.log('Sending order data to CartPanda:', JSON.stringify(orderData, null, 2));
+    
     const url = `${CARTPANDA_API_BASE}/${CARTPANDA_SHOP_SLUG}/order`;
 
     // Call the CartPanda API to create an order
@@ -297,6 +294,21 @@ app.get('/cartpanda_return', async (req, res) => {
   }
 });
 
+// Demo endpoint to test address generation directly
+app.get('/test-address', async (req, res) => {
+  try {
+    const clientIP = getClientIP(req);
+    const addressData = await generateAddressFromIP(clientIP);
+    res.json({
+      detectedIP: clientIP,
+      generatedAddress: addressData
+    });
+  } catch (error) {
+    console.error('Error testing address generation:', error);
+    res.status(500).json({ error: 'Failed to generate address' });
+  }
+});
+
 // Webhook endpoint (optional)
 app.post('/cartpanda-webhook', (req, res) => {
   try {
@@ -325,6 +337,7 @@ app.use((err, req, res, next) => {
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
+
 process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception thrown:', err);
 });
@@ -333,4 +346,5 @@ process.on('uncaughtException', (err) => {
 const port = PORT || 3000;
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
+  console.log(`Test address generation at: http://localhost:${port}/test-address`);
 });
