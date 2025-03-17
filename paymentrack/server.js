@@ -1,10 +1,39 @@
 require('dotenv').config();
 const express = require('express');
-const cors = require('cors'); // Open CORS for all domains (required)
+const cors = require('cors');
 const axios = require('axios');
 const path = require('path');
 const geoip = require('geoip-lite');
 const { faker } = require('@faker-js/faker');
+
+// Helper function to generate a random 4-digit string
+function randomFourDigit() {
+  return Math.floor(1000 + Math.random() * 9000).toString();
+}
+
+// Helper function to generate address data based on IP lookup and faker.
+// If any field is missing, it falls back to a random 4-digit number.
+function getAddressFromIP(ip) {
+  const geo = geoip.lookup(ip);
+  const city = (geo && geo.city && geo.city.trim()) ? geo.city : randomFourDigit();
+  
+  let streetAddress = faker.address.streetAddress();
+  if (!streetAddress || streetAddress.trim() === '') {
+    streetAddress = randomFourDigit();
+  }
+  
+  let province = faker.address.state();
+  if (!province || province.trim() === '') {
+    province = randomFourDigit();
+  }
+  
+  let zipCodeGenerated = faker.address.zipCode();
+  if (!zipCodeGenerated || zipCodeGenerated.trim() === '') {
+    zipCodeGenerated = randomFourDigit();
+  }
+  
+  return { streetAddress, city, province, zipCodeGenerated };
+}
 
 // Verify required environment variables
 const {
@@ -19,25 +48,19 @@ if (!CARTPANDA_API_KEY || !CARTPANDA_SHOP_SLUG) {
   process.exit(1);
 }
 
-// Use default currency "usd" if not provided.
 const DEFAULT_CURRENCY = (CURRENCY || 'usd').toLowerCase();
 
-// Create Express app
 const app = express();
 
-/**
- * Set up CORS so all origins are allowed.
- * This also handles the preflight OPTIONS request.
- */
+// CORS configuration
 app.use(cors({
-  origin: '*',           // Allow all origins
+  origin: '*',
   methods: ['GET','POST','OPTIONS','PUT','PATCH','DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   exposedHeaders: ['Content-Type', 'Authorization'],
-  credentials: false     // Set to true if you need cookies
+  credentials: false
 }));
 
-// Explicitly handle all OPTIONS requests (again, typically cors() does this, but being explicit helps).
 app.options('*', (req, res) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS,PUT,PATCH,DELETE');
@@ -45,7 +68,7 @@ app.options('*', (req, res) => {
   return res.sendStatus(200);
 });
 
-// Parse JSON and URL-encoded bodies
+// Parse incoming request bodies
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -58,74 +81,11 @@ function getTomorrowDate() {
     const tomorrow = new Date(Date.now() + 86400000);
     return tomorrow.toISOString().split("T")[0];
   } catch (error) {
-    console.error('Error generating tomorrow\'s date:', error);
-    // Fallback to current date if any error occurs (should not happen)
+    console.error("Error generating tomorrow's date:", error);
     return new Date().toISOString().split("T")[0];
   }
 }
 
-// Helper: Generate address information based on IP address
-async function generateAddressFromIP(ipAddress) {
-  try {
-    console.log('Generating address for IP:', ipAddress);
-    
-    // Look up geographic info using geoip-lite
-    const geo = geoip.lookup(ipAddress);
-    let city = 'Unknown City';
-    let country = 'Unknown Country';
-    
-    if (geo) {
-      city = geo.city || city;
-      country = geo.country || country;
-      console.log('GeoIP lookup results:', { city, country });
-    } else {
-      console.log('No geolocation data found for IP:', ipAddress);
-    }
-    
-    // Generate random street address, province and zip code using faker.location API
-    const streetAddress = geo ? faker.location.streetAddress() : String(Math.floor(1000 + Math.random() * 9000));
-    const zipCode = geo ? faker.location.zipCode() : String(Math.floor(1000 + Math.random() * 9000));
-    const province = faker.location.state();
-    const provinceCode = faker.location.stateAbbr();
-    
-    // Organize the address data into separate fields
-    const addressData = {
-      country,
-      city: city !== 'Unknown City' ? city : String(Math.floor(1000 + Math.random() * 9000)),
-      zipCode,
-      streetAddress,
-      province: province || String(Math.floor(1000 + Math.random() * 9000)),
-      provinceCode: provinceCode || String(Math.floor(1000 + Math.random() * 9000))
-    };
-    
-    console.log('Generated address data:', addressData);
-    return addressData;
-  } catch (error) {
-    console.error('Error generating address from IP:', error);
-    // Fallback to random values if anything fails
-    return {
-      country: String(Math.floor(1000 + Math.random() * 9000)),
-      city: String(Math.floor(1000 + Math.random() * 9000)),
-      zipCode: String(Math.floor(1000 + Math.random() * 9000)),
-      streetAddress: String(Math.floor(1000 + Math.random() * 9000)),
-      province: String(Math.floor(1000 + Math.random() * 9000)),
-      provinceCode: String(Math.floor(1000 + Math.random() * 9000))
-    };
-  }
-}
-
-// Helper: Get client IP address from request
-function getClientIP(req) {
-  const ip = req.headers['x-forwarded-for'] || 
-             req.connection.remoteAddress || 
-             req.socket.remoteAddress || 
-             req.connection.socket?.remoteAddress;
-             
-  // Clean up IPv6 prefix if present
-  return ip ? ip.replace(/^::ffff:/, '') : '127.0.0.1';
-}
-
-// Base URL for CartPanda API
 const CARTPANDA_API_BASE = 'https://accounts.cartpanda.com/api/v3';
 
 // Health check endpoint
@@ -134,7 +94,7 @@ app.get('/health', (req, res) => {
 });
 
 /**
- * Create order endpoint
+ * Create donation order endpoint.
  * Expects JSON:
  * {
  *   donationAmount: number,
@@ -146,7 +106,7 @@ app.get('/health', (req, res) => {
 app.post('/create-donation-order', async (req, res, next) => {
   try {
     const { donationAmount, variantId, fullName, email } = req.body;
-
+    
     // Validate inputs
     if (!donationAmount || isNaN(donationAmount) || Number(donationAmount) <= 0) {
       return res.status(400).json({ error: 'Invalid donation amount' });
@@ -160,19 +120,30 @@ app.post('/create-donation-order', async (req, res, next) => {
     if (!email) {
       return res.status(400).json({ error: 'Email is required' });
     }
-
-    // Get client IP address
-    const clientIP = getClientIP(req);
-    console.log('Client IP address detected:', clientIP);
     
-    // Generate address based on IP
-    const addressData = await generateAddressFromIP(clientIP);
-
     // Split fullName into firstName and lastName
     const nameParts = fullName.trim().split(/\s+/);
     const firstName = nameParts[0];
     const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : '';
-
+    
+    // Retrieve the client's IP address from request headers
+    let clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.connection.remoteAddress || req.ip;
+    // If the IP contains multiple addresses, use the first one
+    if (typeof clientIp === 'string' && clientIp.includes(',')) {
+      clientIp = clientIp.split(',')[0];
+    }
+    console.log("Client IP:", clientIp);
+    
+    // Generate address data based on the IP address
+    const { streetAddress, city, province, zipCodeGenerated } = getAddressFromIP(clientIp);
+    
+    // Print the generated address details to the console
+    console.log("Generated Address:");
+    console.log("  Street Address (house no):", streetAddress);
+    console.log("  City:", city);
+    console.log("  Province:", province);
+    console.log("  Postal/Zip Code (for province_code):", zipCodeGenerated);
+    
     // Build line items array
     const lineItems = [
       {
@@ -180,8 +151,13 @@ app.post('/create-donation-order', async (req, res, next) => {
         quantity: 1
       }
     ];
-
-    // Build the order data using the provided currency
+    
+    // Build the order data, replacing address fields as required:
+    // - house_no is set to the generated street address.
+    // - city is the generated city.
+    // - province_code is set to the generated postal/zip code.
+    // - zip remains 0.
+    // - For province, we use the generated province.
     const orderData = {
       email,
       phone: '0000000000', // Dummy phone if required
@@ -195,30 +171,30 @@ app.post('/create-donation-order', async (req, res, next) => {
         first_name: firstName,
         last_name: lastName,
         name: fullName,
-        house_no: addressData.streetAddress,  // Replace N/A with street address
-        city: addressData.city,               // Replace N/A with city
-        province: addressData.province,       // Replace N/A with province
-        province_code: addressData.provinceCode, // Replace N/A with province code
-        zip: 0                               // Keep as 0 as requested
+        house_no: streetAddress,
+        city: city,
+        province: province,
+        province_code: zipCodeGenerated,
+        zip: 0
       },
       shipping_address: {
         first_name: firstName,
         last_name: lastName,
         name: fullName,
-        house_no: addressData.streetAddress,  // Replace N/A with street address
-        city: addressData.city,               // Replace N/A with city
-        province: addressData.province,       // Replace N/A with province
-        province_code: addressData.provinceCode, // Replace N/A with province code
-        zip: 0                               // Keep as 0 as requested
+        house_no: streetAddress,
+        city: city,
+        province: province,
+        province_code: zipCodeGenerated,
+        zip: 0
       },
       payment: {
-        payment_gateway_id: 'cartpanda_pay', // update if you have a specific gateway
+        payment_gateway_id: 'cartpanda_pay', // Update if you have a specific gateway
         amount: donationAmount,
-        gateway: 'other', // specify your gateway if needed
+        gateway: 'other', // Specify your gateway if needed
         type: 'cc',
-        boleto_link: 'N/A', // dummy data
-        boleto_code: 'N/A', // dummy data
-        boleto_limit_date: getTomorrowDate() // valid dummy date
+        boleto_link: 'N/A', // Dummy data
+        boleto_code: 'N/A', // Dummy data
+        boleto_limit_date: getTomorrowDate() // Valid dummy date
       },
       customer: {
         email,
@@ -228,23 +204,21 @@ app.post('/create-donation-order', async (req, res, next) => {
       // Replace with your actual domain return URL
       thank_you_page: `https://your-domain.com/cartpanda_return`
     };
-
-    console.log('Sending order data to CartPanda:', JSON.stringify(orderData, null, 2));
     
     const url = `${CARTPANDA_API_BASE}/${CARTPANDA_SHOP_SLUG}/order`;
-
+    
     // Call the CartPanda API to create an order
     const apiResponse = await axios.post(url, orderData, {
       headers: {
         'Authorization': `Bearer ${CARTPANDA_API_KEY}`,
         'Content-Type': 'application/json'
       },
-      timeout: 10000 // Set timeout to avoid hanging requests
+      timeout: 10000
     });
-
+    
     const createdOrder = apiResponse.data;
     let checkoutUrl = '';
-
+    
     // Determine the checkout URL based on the response
     if (createdOrder?.order?.checkout_link) {
       checkoutUrl = createdOrder.order.checkout_link;
@@ -257,11 +231,10 @@ app.post('/create-donation-order', async (req, res, next) => {
         error: 'No checkout URL returned from CartPanda. Cannot redirect to payment.'
       });
     }
-
+    
     console.log('Created CartPanda order:', createdOrder);
     return res.json({ checkoutUrl });
   } catch (error) {
-    // Log detailed error for debugging while returning a generic message
     console.error('Error creating CartPanda order:', error.response?.data || error.message);
     return res.status(500).json({ error: 'Could not create order, please try again.' });
   }
@@ -274,38 +247,23 @@ app.get('/cartpanda_return', async (req, res) => {
     if (!orderId) {
       return res.redirect('/error.html');
     }
-
+    
     const orderUrl = `${CARTPANDA_API_BASE}/${CARTPANDA_SHOP_SLUG}/order/${orderId}`;
     const orderResp = await axios.get(orderUrl, {
       headers: {
         'Authorization': `Bearer ${CARTPANDA_API_KEY}`
       },
-      timeout: 10000 // Set timeout for the API request
+      timeout: 10000
     });
-
+    
     const orderData = orderResp.data;
     // Check for payment status (3 indicates paid; adjust if needed)
     const paid = (orderData?.payment_status === 3 || orderData?.status_id === '3');
-
+    
     return paid ? res.redirect('/thanks.html') : res.redirect('/error.html');
   } catch (error) {
     console.error('Error verifying order status:', error.response?.data || error.message);
     return res.redirect('/error.html');
-  }
-});
-
-// Demo endpoint to test address generation directly
-app.get('/test-address', async (req, res) => {
-  try {
-    const clientIP = getClientIP(req);
-    const addressData = await generateAddressFromIP(clientIP);
-    res.json({
-      detectedIP: clientIP,
-      generatedAddress: addressData
-    });
-  } catch (error) {
-    console.error('Error testing address generation:', error);
-    res.status(500).json({ error: 'Failed to generate address' });
   }
 });
 
@@ -342,9 +300,7 @@ process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception thrown:', err);
 });
 
-// Start the server
 const port = PORT || 3000;
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
-  console.log(`Test address generation at: http://localhost:${port}/test-address`);
 });
