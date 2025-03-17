@@ -19,10 +19,7 @@ if (!CARTPANDA_API_KEY || !CARTPANDA_SHOP_SLUG) {
   process.exit(1);
 }
 
-/**
- * Use default currency "USD" if not provided,
- * ensuring uppercase (CartPanda requires ISO 4217 codes).
- */
+// Use default currency "USD" if not provided, ensuring uppercase.
 const DEFAULT_CURRENCY = (CURRENCY || 'USD').toUpperCase();
 
 // Create Express app
@@ -60,15 +57,13 @@ function getTomorrowDate() {
     const tomorrow = new Date(Date.now() + 86400000);
     return tomorrow.toISOString().split('T')[0];
   } catch (error) {
-    console.error('Error generating tomorrow\'s date:', error);
+    console.error("Error generating tomorrow's date:", error);
     return new Date().toISOString().split('T')[0];
   }
 }
 
 /**
- * Map an ISO country code (e.g., "US", "BR") to the
- * full country name CartPanda might expect. (v1 expects "Brasil" for BR, etc.)
- * Adjust as you see fit if you need more coverage or different naming.
+ * Map an ISO country code (e.g., "US", "BR") to the full country name.
  */
 function mapISOToCountry(isoCode) {
   const map = {
@@ -122,14 +117,14 @@ app.post('/create-donation-order', async (req, res) => {
     const firstName = nameParts[0];
     const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
 
-    // === 1) Get user IP (try multiple headers; fallback to socket address)
+    // Get user IP (try multiple headers; fallback to socket address)
     const userIP =
       (req.headers['x-forwarded-for']?.split(',')[0]?.trim()) ||
       req.socket.remoteAddress ||
       '';
     console.log('Detected user IP:', userIP);
 
-    // === 2) Geo lookup
+    // Geo lookup
     const geo = geoip.lookup(userIP);
     const isoCode = (geo && geo.country) ? geo.country : 'US';
     const finalCountry = mapISOToCountry(isoCode);
@@ -141,9 +136,7 @@ app.post('/create-donation-order', async (req, res) => {
     }
 
     // Use geo if available; otherwise, generate random details
-    const finalCity = (geo && geo.city && geo.city.trim())
-      ? geo.city.trim()
-      : faker.location.city();
+    const finalCity = (geo && geo.city && geo.city.trim()) ? geo.city.trim() : faker.location.city();
     const finalProv = faker.location.state();
     const finalZip = faker.location.zipCode();
     const finalStreet = faker.location.streetAddress();
@@ -158,7 +151,7 @@ app.post('/create-donation-order', async (req, res) => {
       street: finalStreet
     });
 
-    // === 3) Build line items (required by v1)
+    // Build line items
     const lineItems = [
       {
         variant_id: Number(variantId),
@@ -166,14 +159,14 @@ app.post('/create-donation-order', async (req, res) => {
       }
     ];
 
-    // === 4) Build random tokens and phone
+    // Build unique tokens and random phone
     const uniqueCartToken = faker.string.uuid();
     const uniqueCustomerToken = faker.string.uuid();
-    const randomPhone = faker.phone.number('+###########'); // e.g. +17205550123
+    const randomPhone = faker.phone.number('+###########');
 
     /**
-     * v1 requires certain root-level fields, shipping_address, billing_address, etc.
-     * Payment status in the example is "paid". No discount is used, so we set discount = 0.
+     * v1 requires many fields. For unused values (like discount), we pass empty strings or zero.
+     * Note: Adjust dummy values as needed.
      */
     const orderData = {
       cart_token: uniqueCartToken,
@@ -185,17 +178,12 @@ app.post('/create-donation-order', async (req, res) => {
       subtotal_amount: donationAmount,
       card_token: 'random-card-token',
       customer_token: uniqueCustomerToken,
-      order_discount: 0, // no discount
+      order_discount: 0,
       products_total_amount: donationAmount,
       total_amount: donationAmount,
-
-      // can be "paid" or "3" for 'paid' – the example uses the string "paid"
       payment_status: 'paid',
-
       line_items: lineItems,
-
       shipping_address: {
-        // all these fields are "required" by v1; fill with random or relevant data
         address1: finalStreet,
         address2: 'N/A',
         address: finalStreet,
@@ -210,9 +198,8 @@ app.post('/create-donation-order', async (req, res) => {
         province: finalProv,
         zip: Number(finalZip.replace(/\D/g, '') || '99999'),
         name: fullName,
-        province_code: finalProvCode,
+        province_code: finalProvCode
       },
-
       billing_address: {
         address1: finalStreet,
         address2: 'N/A',
@@ -228,52 +215,39 @@ app.post('/create-donation-order', async (req, res) => {
         province: finalProv,
         zip: Number(finalZip.replace(/\D/g, '') || '99999'),
         name: fullName,
-        province_code: finalProvCode,
+        province_code: finalProvCode
       },
-
-      // shipping info block: required by v1
       shipping: {
-        price: 0,          // zero shipping cost for a donation
+        price: 0,
         source: 'Donation',
         title: 'No Shipping Needed'
       },
-
-      // Payment object (v1 requires all these fields)
       payment: {
         payment_gateway_id: 'random-payment-gateway-id',
         amount: donationAmount,
-        gateway: 'other',   // e.g. "appmax", "mercadopago", "ebanx", "pagseguro", or "other"
-        type: 'cc',         // "cc", "boleto", or "admin"
+        gateway: 'other',
+        type: 'cc',
         boleto_link: 'N/A',
         boleto_code: 'N/A',
-        boleto_limit_date: getTomorrowDate() // required even if type != boleto
+        boleto_limit_date: getTomorrowDate()
       },
-
-      // discount object is required, so set it to zero
       discount: {
         value: 0,
         amount: 0,
         value_type: 'fixed_amount',
         note: 'No discount used'
       },
-
-      // Customer object is required; we can just use placeholders
       customer: {
-        id: 0, // or random
+        id: 0,
         email,
         first_name: firstName,
         last_name: lastName,
-        cpf: 123456789 // or any random number
+        cpf: 123456789
       },
-
-      // Additional tags if desired
-      tags: [
-        'Donation',
-        'Auto-created',
-      ]
+      tags: ['Donation', 'Auto-created']
     };
 
-    // === 5) Send the Create-Order request to CartPanda v1
+    // Send the Create-Order request to CartPanda v1
     const url = `${CARTPANDA_API_BASE}/${CARTPANDA_SHOP_SLUG}/order`;
     const apiResponse = await axios.post(url, orderData, {
       headers: {
@@ -283,11 +257,9 @@ app.post('/create-donation-order', async (req, res) => {
       timeout: 10000
     });
 
-    // If successful, the response should have "order" property.
     const createdOrder = apiResponse.data;
     console.log('Created CartPanda order:', createdOrder);
 
-    // v1 returns a "thank_you_page" in createdOrder.order.thank_you_page
     let checkoutUrl = '';
     if (createdOrder?.order?.thank_you_page) {
       checkoutUrl = createdOrder.order.thank_you_page;
@@ -297,9 +269,8 @@ app.post('/create-donation-order', async (req, res) => {
       });
     }
 
-    // === 6) Return the "thank_you_page" to your frontend as a redirect URL
+    // Return the thank_you_page URL to the frontend
     return res.json({ checkoutUrl });
-
   } catch (error) {
     console.error('Error creating CartPanda order:', error.response?.data || error.message);
     return res.status(500).json({ error: 'Could not create order, please try again.' });
@@ -309,7 +280,6 @@ app.post('/create-donation-order', async (req, res) => {
 /**
  * GET /cartpanda_return
  * Final verification after checkout
- * (Keeping the same logic as before, though v1 typically returns order data in a similar format.)
  */
 app.get('/cartpanda_return', async (req, res) => {
   try {
@@ -318,7 +288,6 @@ app.get('/cartpanda_return', async (req, res) => {
       return res.redirect('/error.html');
     }
 
-    // Retrieve the order from v1
     const orderUrl = `${CARTPANDA_API_BASE}/${CARTPANDA_SHOP_SLUG}/order/${orderId}`;
     const orderResp = await axios.get(orderUrl, {
       headers: {
@@ -328,9 +297,54 @@ app.get('/cartpanda_return', async (req, res) => {
     });
 
     const orderData = orderResp.data;
-    // For v1, "payment_status" might be "paid" if fully paid.
-    // In many CartPanda setups, status_id "3" or "PAID" means success.
-    // Adjust logic as needed based on your actual order data structure.
-    const isPaid =
-      orderData?.order?.payment_status === 'paid' ||
- 
+    const isPaid = orderData?.order?.payment_status === 'paid' || orderData?.order?.status_id === 3;
+    if (isPaid) {
+      return res.redirect('/thanks.html');
+    } else {
+      return res.redirect('/error.html');
+    }
+  } catch (error) {
+    console.error('Error verifying order status:', error.response?.data || error.message);
+    return res.redirect('/error.html');
+  }
+});
+
+/**
+ * Optional webhook endpoint
+ */
+app.post('/cartpanda-webhook', (req, res) => {
+  try {
+    const eventName = req.body.event;
+    const order = req.body.order;
+    console.log('Received CartPanda Webhook:', eventName, order?.id);
+    res.sendStatus(200);
+  } catch (err) {
+    console.error('Error in webhook handler:', err);
+    res.sendStatus(500);
+  }
+});
+
+// Catch-all route for undefined endpoints
+app.use((req, res) => {
+  res.status(404).json({ error: 'Endpoint not found' });
+});
+
+// Global error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
+// Process-level error handlers
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception thrown:', err);
+});
+
+// Start the server
+const port = PORT || 3000;
+app.listen(port, () => {
+  console.log(`Server running on http://localhost:${port}`);
+});
