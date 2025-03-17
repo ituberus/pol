@@ -11,7 +11,10 @@ const {
   CARTPANDA_API_KEY,
   CARTPANDA_SHOP_SLUG,
   PORT,
-  CURRENCY
+  CURRENCY,
+  // Add these for test-mode functionality
+  TEST_MODE,            // "true" or "false"
+  DONATION_VARIANT_ID   // The env variant ID used if TEST_MODE === "true"
 } = process.env;
 
 if (!CARTPANDA_API_KEY || !CARTPANDA_SHOP_SLUG) {
@@ -101,13 +104,24 @@ app.get('/health', (req, res) => {
  */
 app.post('/create-donation-order', async (req, res) => {
   try {
-    const { donationAmount, variantId, fullName, email } = req.body;
+    let { donationAmount, variantId, fullName, email } = req.body;
+
+    // If TEST_MODE === "true", override donationAmount & variantId for testing
+    if (TEST_MODE === 'true') {
+      donationAmount = 1; // Hardcode $1 for test
+      variantId = DONATION_VARIANT_ID; // Use the environment test variant ID
+      console.log('TEST_MODE is active. Overriding donationAmount and variantId with env test values.');
+    }
+
+    // Convert to number after potential override
+    const finalDonationAmount = Number(donationAmount);
+    const finalVariantId = Number(variantId);
 
     // Validate inputs
-    if (!donationAmount || isNaN(donationAmount) || Number(donationAmount) <= 0) {
+    if (!finalDonationAmount || isNaN(finalDonationAmount) || finalDonationAmount <= 0) {
       return res.status(400).json({ error: 'Invalid donation amount' });
     }
-    if (!variantId || isNaN(Number(variantId))) {
+    if (!finalVariantId || isNaN(finalVariantId)) {
       return res.status(400).json({ error: 'Missing or invalid variant ID' });
     }
     if (!fullName || fullName.trim() === '') {
@@ -161,7 +175,7 @@ app.post('/create-donation-order', async (req, res) => {
     // === 3) Build line items
     const lineItems = [
       {
-        variant_id: Number(variantId),
+        variant_id: finalVariantId,
         quantity: 1
       }
     ];
@@ -177,9 +191,9 @@ app.post('/create-donation-order', async (req, res) => {
       phone: randomPhone,
       currency: DEFAULT_CURRENCY,
       presentment_currency: DEFAULT_CURRENCY,
-      subtotal_amount: donationAmount,
-      products_total_amount: donationAmount,
-      total_amount: donationAmount,
+      subtotal_amount: finalDonationAmount,
+      products_total_amount: finalDonationAmount,
+      total_amount: finalDonationAmount,
 
       // Unique tokens to avoid duplicate order detection
       cart_token: uniqueCartToken,
@@ -190,7 +204,7 @@ app.post('/create-donation-order', async (req, res) => {
       billing_address: {
         address1: finalStreet,
         address2: '',
-        house_no: finalStreet,
+        house_no: finalStreet, // Just duplicating address1 as house_no
         city: finalCity,
         province: finalProv,
         province_code: finalProvCode,
@@ -214,11 +228,11 @@ app.post('/create-donation-order', async (req, res) => {
         country: finalCountry
       },
 
-      // Payment details (using dummy boleto fields for "other" gateway)
+      // Payment details (using dummy fields for "other" gateway or "cartpanda_pay")
       payment: {
-        payment_gateway_id: 'cartpanda_pay',
-        amount: donationAmount,
-        gateway: 'other',
+        payment_gateway_id: 'cartpanda_pay',  // or "other" if you'd prefer
+        amount: finalDonationAmount,
+        gateway: 'other',  // 'other', 'mercadopago', 'ebanx', etc.
         type: 'cc',
         boleto_link: 'N/A',
         boleto_code: 'N/A',
@@ -232,20 +246,20 @@ app.post('/create-donation-order', async (req, res) => {
       },
 
       // Pass client_details as a string (not an object)
-      client_details: IP: ${userIP} | UA: ${req.headers['user-agent'] || 'N/A'},
+      client_details: `IP: ${userIP} | UA: ${req.headers['user-agent'] || 'N/A'}`,
 
       // Add an order note with a unique timestamp and random UUID to further break duplicates
-      order_note: ${Date.now()}-${faker.string.uuid()},
+      order_note: `${Date.now()}-${faker.string.uuid()}`,
 
       // Optional "thank you" page override
-      thank_you_page: https://${CARTPANDA_SHOP_SLUG}.mycartpanda.com/cartpanda_return
+      thank_you_page: `https://${CARTPANDA_SHOP_SLUG}.mycartpanda.com/cartpanda_return`
     };
 
     // === 6) Send the Create-Order request to CartPanda
-    const url = ${CARTPANDA_API_BASE}/${CARTPANDA_SHOP_SLUG}/order;
+    const url = `${CARTPANDA_API_BASE}/${CARTPANDA_SHOP_SLUG}/order`;
     const apiResponse = await axios.post(url, orderData, {
       headers: {
-        Authorization: Bearer ${CARTPANDA_API_KEY},
+        Authorization: `Bearer ${CARTPANDA_API_KEY}`,
         'Content-Type': 'application/json'
       },
       timeout: 10000
@@ -261,7 +275,7 @@ app.post('/create-donation-order', async (req, res) => {
     } else if (createdOrder.checkout_link) {
       checkoutUrl = createdOrder.checkout_link;
     } else if (createdOrder?.order?.id) {
-      checkoutUrl = https://${CARTPANDA_SHOP_SLUG}.mycartpanda.com/checkout?order_id=${createdOrder.order.id};
+      checkoutUrl = `https://${CARTPANDA_SHOP_SLUG}.mycartpanda.com/checkout?order_id=${createdOrder.order.id}`;
     } else {
       return res.status(500).json({
         error: 'No checkout URL returned from CartPanda. Cannot redirect to payment.'
@@ -288,10 +302,10 @@ app.get('/cartpanda_return', async (req, res) => {
       return res.redirect('/error.html');
     }
 
-    const orderUrl = ${CARTPANDA_API_BASE}/${CARTPANDA_SHOP_SLUG}/order/${orderId};
+    const orderUrl = `${CARTPANDA_API_BASE}/${CARTPANDA_SHOP_SLUG}/order/${orderId}`;
     const orderResp = await axios.get(orderUrl, {
       headers: {
-        Authorization: Bearer ${CARTPANDA_API_KEY}
+        Authorization: `Bearer ${CARTPANDA_API_KEY}`
       },
       timeout: 10000
     });
@@ -354,5 +368,5 @@ process.on('uncaughtException', (err) => {
 // Start the server
 const port = PORT || 3000;
 app.listen(port, () => {
-  console.log(Server running on http://localhost:${port});
+  console.log(`Server running on http://localhost:${port}`);
 });
