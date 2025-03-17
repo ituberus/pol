@@ -212,7 +212,7 @@ app.post('/create-donation-order', async (req, res) => {
         address2: '',              // not compulsory
         house_no: 'no 01',     // or any random fallback
         city: 'new york',
-        province: 'New York,
+        province: 'New York',
         zip: '10001',
         province_code: 'NY',
         country: 'US',
