@@ -79,7 +79,7 @@ function mapISOToCountry(isoCode) {
     CA: 'Canada',
     GB: 'United Kingdom',
     AU: 'Australia'
-    // add more if needed
+    // add more mappings if needed
   };
   return map[isoCode.toUpperCase()] || 'United States';
 }
@@ -174,9 +174,9 @@ app.post('/create-donation-order', async (req, res) => {
     ];
 
     // === 5) Build the order data
-    //    NOTE: We add dummy boleto fields to avoid CartPanda's 422 error 
-    //    if "gateway" is "other".
+    // Add a unique cart_token so duplicate orders are not detected.
     const orderData = {
+      cart_token: faker.datatype.uuid(),
       email,
       phone: '0000000000',
       currency: DEFAULT_CURRENCY,
@@ -229,7 +229,6 @@ app.post('/create-donation-order', async (req, res) => {
         last_name: lastName
       },
 
-      // Thank you page can be your domain or the default in CartPanda
       thank_you_page: `https://${CARTPANDA_SHOP_SLUG}.mycartpanda.com/cartpanda_return`
     };
 
