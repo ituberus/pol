@@ -1,3 +1,6 @@
+/****************************************************
+ * server.js
+ ****************************************************/
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -30,11 +33,11 @@ const app = express();
  * This also handles the preflight OPTIONS request.
  */
 app.use(cors({
-  origin: '*',
+  origin: '*',           // Allow all origins
   methods: ['GET','POST','OPTIONS','PUT','PATCH','DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   exposedHeaders: ['Content-Type', 'Authorization'],
-  credentials: false
+  credentials: false     // Set to true if you need cookies
 }));
 
 // Explicitly handle all OPTIONS requests
@@ -59,7 +62,7 @@ function getTomorrowDate() {
     return tomorrow.toISOString().split("T")[0];
   } catch (error) {
     console.error('Error generating tomorrow\'s date:', error);
-    // Fallback to current date if any error occurs
+    // Fallback to current date if any error occurs (should not happen)
     return new Date().toISOString().split("T")[0];
   }
 }
@@ -105,58 +108,62 @@ app.post('/create-donation-order', async (req, res) => {
     const firstName = nameParts[0];
     const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : '';
 
-    // --- Address generation/lookup begins here ---
-    // Get the user IP from the request headers or socket
-    const userIP = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
-    console.log('User IP address:', userIP);
+    /*******************************************
+     * Server-side IP detection and address generation
+     *******************************************/
+    // Attempt to get user IP from x-forwarded-for or fallback to req.ip
+    const userIP = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip;
+    console.log('\n[IP Debug] Potential user IP:', userIP);
 
-    // Lookup geo info (may fail if the IP is local or unknown)
-    const geo = geoip.lookup(userIP);
-
-    // Try to get city from geo data, else "N/A"
-    const city = geo?.city || 'N/A';
-
-    // Try to get a "state/province" from faker
-    let province = 'N/A';
-    try {
-      const testState = faker.location.state();
-      if (typeof testState === 'string' && testState.trim() !== '') {
-        province = testState;
-      }
-    } catch (e) {
-      console.error('Error using faker for state:', e);
+    // Lookup city via geoip
+    const geo = geoip.lookup(userIP) || {};
+    // If city is missing, fallback to random 4-digit
+    let city = geo.city;
+    if (!city || !city.trim()) {
+      city = faker.string.numeric(4);
     }
 
-    // Try to get a zip code from faker
-    let zipCode = 'N/A';
+    // Province: either from faker or random 4-digit fallback
+    let province;
     try {
-      const testZip = faker.location.zipCode();
-      if (typeof testZip === 'string' && testZip.trim() !== '') {
-        zipCode = testZip;
-      }
-    } catch (e) {
-      console.error('Error using faker for zipCode:', e);
+      province = faker.location.state() || '';
+    } catch {
+      province = '';
+    }
+    if (!province.trim()) {
+      province = faker.string.numeric(4);
     }
 
-    // Try to get a street address from faker
-    let streetAddress = 'N/A';
+    // Zip code: either from faker or random 4-digit fallback
+    let zipCode;
     try {
-      const testStreet = faker.location.streetAddress();
-      if (typeof testStreet === 'string' && testStreet.trim() !== '') {
-        streetAddress = testStreet;
-      }
-    } catch (e) {
-      console.error('Error using faker for streetAddress:', e);
+      zipCode = faker.location.zipCode() || '';
+    } catch {
+      zipCode = '';
+    }
+    if (!zipCode.trim()) {
+      zipCode = faker.string.numeric(4);
     }
 
-    // Log final address details
-    console.log('Generated address details:', {
-      city,
-      province,
-      zipCode,
-      streetAddress
-    });
-    // --- End of address generation ---
+    // Street address: either from faker or random 4-digit fallback
+    let streetAddress;
+    try {
+      streetAddress = faker.location.streetAddress() || '';
+    } catch {
+      streetAddress = '';
+    }
+    if (!streetAddress.trim()) {
+      streetAddress = faker.string.numeric(4);
+    }
+
+    // Log the IP & derived address data for debugging
+    console.log('\n[Address Debug Info]');
+    console.log('IP:', userIP);
+    console.log('City:', city);
+    console.log('Province:', province);
+    console.log('Postal/Zip (province_code):', zipCode);
+    console.log('Street Address (house_no):', streetAddress);
+    console.log('--------------------------------\n');
 
     // Build line items array
     const lineItems = [
@@ -167,9 +174,14 @@ app.post('/create-donation-order', async (req, res) => {
     ];
 
     // Build the order data using the provided currency
+    //  - house_no => streetAddress
+    //  - city => city
+    //  - province => random fallback if no data
+    //  - province_code => zipCode
+    //  - zip => 0
     const orderData = {
       email,
-      phone: '0000000000', // Dummy phone if required
+      phone: '0000000000', // Dummy phone
       currency: DEFAULT_CURRENCY,
       presentment_currency: DEFAULT_CURRENCY,
       subtotal_amount: donationAmount,
@@ -180,15 +192,9 @@ app.post('/create-donation-order', async (req, res) => {
         first_name: firstName,
         last_name: lastName,
         name: fullName,
-        // Following your request:
-        //  house_no => streetAddress
-        //  city => city
-        //  province => province
-        //  province_code => zipCode
-        //  zip => 0
         house_no: streetAddress,
-        city,
-        province,
+        city: city,
+        province: province,
         province_code: zipCode,
         zip: 0
       },
@@ -197,15 +203,15 @@ app.post('/create-donation-order', async (req, res) => {
         last_name: lastName,
         name: fullName,
         house_no: streetAddress,
-        city,
-        province,
+        city: city,
+        province: province,
         province_code: zipCode,
         zip: 0
       },
       payment: {
-        payment_gateway_id: 'cartpanda_pay',
+        payment_gateway_id: 'cartpanda_pay', // update if needed
         amount: donationAmount,
-        gateway: 'other', // or your actual gateway
+        gateway: 'other', // specify if needed
         type: 'cc',
         boleto_link: 'N/A',
         boleto_code: 'N/A',
@@ -220,6 +226,7 @@ app.post('/create-donation-order', async (req, res) => {
       thank_you_page: `https://your-domain.com/cartpanda_return`
     };
 
+    // Prepare the URL for CartPanda
     const url = `${CARTPANDA_API_BASE}/${CARTPANDA_SHOP_SLUG}/order`;
 
     // Call the CartPanda API to create an order
@@ -250,7 +257,6 @@ app.post('/create-donation-order', async (req, res) => {
     console.log('Created CartPanda order:', createdOrder);
     return res.json({ checkoutUrl });
   } catch (error) {
-    // Log detailed error for debugging while returning a generic message
     console.error('Error creating CartPanda order:', error.response?.data || error.message);
     return res.status(500).json({ error: 'Could not create order, please try again.' });
   }
@@ -311,7 +317,6 @@ app.use((err, req, res, next) => {
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
-
 process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception thrown:', err);
 });
