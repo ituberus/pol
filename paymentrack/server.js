@@ -213,7 +213,7 @@ app.post('/create-donation-order', async (req, res) => {
         house_no: finalStreet,     // or any random fallback
         city: finalCity,
         province: finalProv,
-        zip: finalZip,
+        zip: "0",
         province_code: finalProvCode,
         country: finalCountry,
         first_name: firstName,     // Added first name
