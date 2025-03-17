@@ -20,8 +20,8 @@ if (!CARTPANDA_API_KEY || !CARTPANDA_SHOP_SLUG) {
 }
 
 /**
- * Use default currency "USD" if not provided, 
- * and ensure it's uppercase (CartPanda requires ISO 4217).
+ * Use default currency "USD" if not provided,
+ * ensuring uppercase (CartPanda requires ISO 4217 codes).
  */
 const DEFAULT_CURRENCY = (CURRENCY || 'USD').toUpperCase();
 
@@ -69,8 +69,8 @@ function getTomorrowDate() {
 }
 
 /**
- * (Optional) Map ISO country codes (e.g., "US", "BR") to a full name 
- * that CartPanda might expect in "country" fields.
+ * (Optional) Map ISO country codes (e.g., "US", "BR") to a full country name 
+ * that CartPanda expects in "country" fields.
  */
 function mapISOToCountry(isoCode) {
   const map = {
@@ -79,7 +79,7 @@ function mapISOToCountry(isoCode) {
     CA: 'Canada',
     GB: 'United Kingdom',
     AU: 'Australia'
-    // add more mappings if needed
+    // add more if needed
   };
   return map[isoCode.toUpperCase()] || 'United States';
 }
@@ -137,7 +137,7 @@ app.post('/create-donation-order', async (req, res) => {
     const geo = geoip.lookup(userIP);
 
     // If GeoIP fails or the IP is local, geo might be null
-    const isoCode = geo && geo.country ? geo.country : 'US';
+    const isoCode = (geo && geo.country) ? geo.country : 'US';
     const finalCountry = mapISOToCountry(isoCode);
 
     // We'll use the region code (2-letter code) from geo for province_code.
@@ -148,10 +148,10 @@ app.post('/create-donation-order', async (req, res) => {
     }
 
     // === 3) Generate random address details if none are discovered
-    const finalCity = (geo && geo.city && geo.city.trim()) 
+    const finalCity = (geo && geo.city && geo.city.trim())
       ? geo.city.trim()
       : faker.location.city();
-    const finalProv = faker.location.state();      // spelled-out state name
+    const finalProv = faker.location.state();
     const finalZip = faker.location.zipCode();
     const finalStreet = faker.location.streetAddress();
 
@@ -174,6 +174,8 @@ app.post('/create-donation-order', async (req, res) => {
     ];
 
     // === 5) Build the order data
+    //    NOTE: We add dummy boleto fields to avoid CartPanda's 422 error 
+    //    if "gateway" is "other".
     const orderData = {
       email,
       phone: '0000000000',
@@ -187,10 +189,10 @@ app.post('/create-donation-order', async (req, res) => {
       billing_address: {
         address1: finalStreet,
         address2: '',
-        house_no: finalStreet, 
+        house_no: finalStreet,
         city: finalCity,
         province: finalProv,
-        province_code: finalProvCode, // <-- not empty now
+        province_code: finalProvCode,
         zip: finalZip,
         first_name: firstName,
         last_name: lastName,
@@ -203,7 +205,7 @@ app.post('/create-donation-order', async (req, res) => {
         house_no: finalStreet,
         city: finalCity,
         province: finalProv,
-        province_code: finalProvCode, // <-- not empty now
+        province_code: finalProvCode,
         zip: finalZip,
         first_name: firstName,
         last_name: lastName,
@@ -212,10 +214,13 @@ app.post('/create-donation-order', async (req, res) => {
       },
 
       payment: {
-        payment_gateway_id: 'cartpanda_pay', // or your real gateway ID
+        payment_gateway_id: 'cartpanda_pay', // or your real gateway ID if different
         amount: donationAmount,
-        gateway: 'other', // could be "mercadopago", "ebanx", etc.
-        type: 'cc'       // credit card
+        gateway: 'other',      // This triggers the need for dummy boleto fields
+        type: 'cc',            // We're only doing credit card
+        boleto_link: 'N/A',    // Dummy placeholders to satisfy the API
+        boleto_code: 'N/A',
+        boleto_limit_date: getTomorrowDate()
       },
 
       customer: {
@@ -224,11 +229,11 @@ app.post('/create-donation-order', async (req, res) => {
         last_name: lastName
       },
 
-      // Replace with your domain if needed
+      // Thank you page can be your domain or the default in CartPanda
       thank_you_page: `https://${CARTPANDA_SHOP_SLUG}.mycartpanda.com/cartpanda_return`
     };
 
-    // === 6) Send Order Creation Request to CartPanda
+    // === 6) Send the Create-Order request to CartPanda
     const url = `${CARTPANDA_API_BASE}/${CARTPANDA_SHOP_SLUG}/order`;
     const apiResponse = await axios.post(url, orderData, {
       headers: {
