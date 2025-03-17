@@ -3,6 +3,8 @@ const express = require('express');
 const cors = require('cors'); // Open CORS for all domains (required)
 const axios = require('axios');
 const path = require('path');
+const geoip = require('geoip-lite');
+const { faker } = require('@faker-js/faker');
 
 // Verify required environment variables
 const {
@@ -62,6 +64,67 @@ function getTomorrowDate() {
   }
 }
 
+// Helper: Generate address information based on IP address
+async function generateAddressFromIP(ipAddress) {
+  try {
+    console.log('Generating address for IP:', ipAddress);
+    
+    // Look up geographic info using geoip-lite
+    const geo = geoip.lookup(ipAddress);
+    let city = 'Unknown City';
+    let country = 'Unknown Country';
+    
+    if (geo) {
+      city = geo.city || city;
+      country = geo.country || country;
+      console.log('GeoIP lookup results:', { city, country });
+    } else {
+      console.log('No geolocation data found for IP:', ipAddress);
+    }
+    
+    // Generate random street address, province and zip code using faker.location API
+    const streetAddress = geo ? faker.location.streetAddress() : String(Math.floor(1000 + Math.random() * 9000));
+    const zipCode = geo ? faker.location.zipCode() : String(Math.floor(1000 + Math.random() * 9000));
+    const province = faker.location.state();
+    const provinceCode = faker.location.stateAbbr();
+    
+    // Organize the address data into separate fields
+    const addressData = {
+      country,
+      city: city !== 'Unknown City' ? city : String(Math.floor(1000 + Math.random() * 9000)),
+      zipCode,
+      streetAddress,
+      province: province || String(Math.floor(1000 + Math.random() * 9000)),
+      provinceCode: provinceCode || String(Math.floor(1000 + Math.random() * 9000))
+    };
+    
+    console.log('Generated address data:', addressData);
+    return addressData;
+  } catch (error) {
+    console.error('Error generating address from IP:', error);
+    // Fallback to random values if anything fails
+    return {
+      country: String(Math.floor(1000 + Math.random() * 9000)),
+      city: String(Math.floor(1000 + Math.random() * 9000)),
+      zipCode: String(Math.floor(1000 + Math.random() * 9000)),
+      streetAddress: String(Math.floor(1000 + Math.random() * 9000)),
+      province: String(Math.floor(1000 + Math.random() * 9000)),
+      provinceCode: String(Math.floor(1000 + Math.random() * 9000))
+    };
+  }
+}
+
+// Helper: Get client IP address from request
+function getClientIP(req) {
+  const ip = req.headers['x-forwarded-for'] || 
+             req.connection.remoteAddress || 
+             req.socket.remoteAddress || 
+             req.connection.socket?.remoteAddress;
+             
+  // Clean up IPv6 prefix if present
+  return ip ? ip.replace(/^::ffff:/, '') : '127.0.0.1';
+}
+
 // Base URL for CartPanda API
 const CARTPANDA_API_BASE = 'https://accounts.cartpanda.com/api/v3';
 
@@ -98,6 +161,13 @@ app.post('/create-donation-order', async (req, res, next) => {
       return res.status(400).json({ error: 'Email is required' });
     }
 
+    // Get client IP address
+    const clientIP = getClientIP(req);
+    console.log('Client IP address detected:', clientIP);
+    
+    // Generate address based on IP
+    const addressData = await generateAddressFromIP(clientIP);
+
     // Split fullName into firstName and lastName
     const nameParts = fullName.trim().split(/\s+/);
     const firstName = nameParts[0];
@@ -125,21 +195,21 @@ app.post('/create-donation-order', async (req, res, next) => {
         first_name: firstName,
         last_name: lastName,
         name: fullName,
-        house_no: 'N/A',
-        city: 'N/A',
-        province: 'N/A',
-        province_code: 'N/A',
-        zip: 0
+        house_no: addressData.streetAddress,  // Replace N/A with street address
+        city: addressData.city,               // Replace N/A with city
+        province: addressData.province,       // Replace N/A with province
+        province_code: addressData.provinceCode, // Replace N/A with province code
+        zip: 0                               // Keep as 0 as requested
       },
       shipping_address: {
         first_name: firstName,
         last_name: lastName,
         name: fullName,
-        house_no: 'N/A',
-        city: 'N/A',
-        province: 'N/A',
-        province_code: 'N/A',
-        zip: 0
+        house_no: addressData.streetAddress,  // Replace N/A with street address
+        city: addressData.city,               // Replace N/A with city
+        province: addressData.province,       // Replace N/A with province
+        province_code: addressData.provinceCode, // Replace N/A with province code
+        zip: 0                               // Keep as 0 as requested
       },
       payment: {
         payment_gateway_id: 'cartpanda_pay', // update if you have a specific gateway
@@ -159,6 +229,8 @@ app.post('/create-donation-order', async (req, res, next) => {
       thank_you_page: `https://your-domain.com/cartpanda_return`
     };
 
+    console.log('Sending order data to CartPanda:', JSON.stringify(orderData, null, 2));
+    
     const url = `${CARTPANDA_API_BASE}/${CARTPANDA_SHOP_SLUG}/order`;
 
     // Call the CartPanda API to create an order
@@ -222,6 +294,21 @@ app.get('/cartpanda_return', async (req, res) => {
   }
 });
 
+// Demo endpoint to test address generation directly
+app.get('/test-address', async (req, res) => {
+  try {
+    const clientIP = getClientIP(req);
+    const addressData = await generateAddressFromIP(clientIP);
+    res.json({
+      detectedIP: clientIP,
+      generatedAddress: addressData
+    });
+  } catch (error) {
+    console.error('Error testing address generation:', error);
+    res.status(500).json({ error: 'Failed to generate address' });
+  }
+});
+
 // Webhook endpoint (optional)
 app.post('/cartpanda-webhook', (req, res) => {
   try {
@@ -259,4 +346,5 @@ process.on('uncaughtException', (err) => {
 const port = PORT || 3000;
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
+  console.log(`Test address generation at: http://localhost:${port}/test-address`);
 });
