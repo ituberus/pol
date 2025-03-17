@@ -208,26 +208,26 @@ app.post('/create-donation-order', async (req, res) => {
 
       // Address info (using same data for shipping & billing)
       shipping_address: {
-        address1: '',
+        address1: finalStreet,
         address2: '',              // not compulsory
-        house_no: 'no 01',     // or any random fallback
-        city: 'new york',
-        province: 'New York',
-        zip: '10001',
-        province_code: 'NY',
-        country: 'US',
+        house_no: finalStreet,     // or any random fallback
+        city: finalCity,
+        province: finalProv,
+        zip: "10001",
+        province_code: finalProvCode,
+        country: finalCountry,
         first_name: firstName,     // Added first name
         last_name: lastName        // Added last name
       },
       billing_address: {
-        address1: '',
+        address1: finalStreet,
         address2: '',
-        house_no: 'no 01',
-        city: 'new york',
-        province: 'new york',
-        zip: '10001',
-        province_code: 'NY',
-        country: 'US',
+        house_no: finalStreet,
+        city: finalCity,
+        province: finalProv,
+        zip: finalZip,
+        province_code: finalProvCode,
+        country: finalCountry,
         first_name: firstName,
         last_name: lastName,
         name: fullName
