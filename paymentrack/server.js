@@ -6,15 +6,14 @@ const path = require('path');
 const geoip = require('geoip-lite');
 const { faker } = require('@faker-js/faker');
 
-// Verify required environment variables
+// ============= Environment & defaults =============
 const {
   CARTPANDA_API_KEY,
   CARTPANDA_SHOP_SLUG,
   PORT,
   CURRENCY,
-  // Add these for test-mode functionality
-  TEST_MODE,            // "true" or "false"
-  DONATION_VARIANT_ID   // The env variant ID used if TEST_MODE === "true"
+  TEST_MODE,
+  TEST_VARIANT_ID
 } = process.env;
 
 if (!CARTPANDA_API_KEY || !CARTPANDA_SHOP_SLUG) {
@@ -22,16 +21,11 @@ if (!CARTPANDA_API_KEY || !CARTPANDA_SHOP_SLUG) {
   process.exit(1);
 }
 
-/**
- * Use default currency "USD" if not provided,
- * ensuring uppercase (CartPanda requires ISO 4217 codes).
- */
 const DEFAULT_CURRENCY = (CURRENCY || 'USD').toUpperCase();
 
-// Create Express app
+// ============= Express app setup =============
 const app = express();
 
-// Set up CORS so all origins are allowed.
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'OPTIONS', 'PUT', 'PATCH', 'DELETE'],
@@ -40,7 +34,6 @@ app.use(cors({
   credentials: false
 }));
 
-// Explicitly handle all OPTIONS requests.
 app.options('*', (req, res) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS,PUT,PATCH,DELETE');
@@ -52,12 +45,12 @@ app.options('*', (req, res) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static files from the 'public' directory
+// Serve static files from the 'public' directory if you have any
 app.use(express.static(path.join(__dirname, 'public')));
 
-/**
- * Helper: Return tomorrow’s date as "YYYY-MM-DD"
- */
+// ============= Helpers =============
+
+/** Helper: Return tomorrow’s date as "YYYY-MM-DD" */
 function getTomorrowDate() {
   try {
     const tomorrow = new Date(Date.now() + 86400000);
@@ -66,6 +59,11 @@ function getTomorrowDate() {
     console.error('Error generating tomorrow\'s date:', error);
     return new Date().toISOString().split('T')[0];
   }
+}
+
+/** Helper: unique string generator (like second snippet) */
+function uniqueString() {
+  return `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
 }
 
 /**
@@ -79,7 +77,7 @@ function mapISOToCountry(isoCode) {
     CA: 'Canada',
     GB: 'United Kingdom',
     AU: 'Australia'
-    // Add more mappings as needed
+    // Add more as needed
   };
   return map[isoCode.toUpperCase()] || 'United States';
 }
@@ -87,14 +85,14 @@ function mapISOToCountry(isoCode) {
 // Base URL for CartPanda API (v3)
 const CARTPANDA_API_BASE = 'https://accounts.cartpanda.com/api/v3';
 
-// Health check endpoint
+// ============= Health check =============
 app.get('/health', (req, res) => {
   res.json({ status: 'OK' });
 });
 
 /**
  * POST /create-donation-order
- * Expected Body:
+ * Body shape:
  *  {
  *    donationAmount: number,
  *    variantId: number,
@@ -106,22 +104,18 @@ app.post('/create-donation-order', async (req, res) => {
   try {
     let { donationAmount, variantId, fullName, email } = req.body;
 
-    // If TEST_MODE === "true", override donationAmount & variantId for testing
+    // Check if we are in "test mode"; if so, override
     if (TEST_MODE === 'true') {
-      donationAmount = 1; // Hardcode $1 for test
-      variantId = DONATION_VARIANT_ID; // Use the environment test variant ID
-      console.log('TEST_MODE is active. Overriding donationAmount and variantId with env test values.');
+      console.log('TEST_MODE is active. Overriding amount and variant ID.');
+      donationAmount = 1; // $1
+      variantId = TEST_VARIANT_ID;
     }
-
-    // Convert to number after potential override
-    const finalDonationAmount = Number(donationAmount);
-    const finalVariantId = Number(variantId);
 
     // Validate inputs
-    if (!finalDonationAmount || isNaN(finalDonationAmount) || finalDonationAmount <= 0) {
+    if (!donationAmount || isNaN(donationAmount) || Number(donationAmount) <= 0) {
       return res.status(400).json({ error: 'Invalid donation amount' });
     }
-    if (!finalVariantId || isNaN(finalVariantId)) {
+    if (!variantId || isNaN(Number(variantId))) {
       return res.status(400).json({ error: 'Missing or invalid variant ID' });
     }
     if (!fullName || fullName.trim() === '') {
@@ -131,12 +125,12 @@ app.post('/create-donation-order', async (req, res) => {
       return res.status(400).json({ error: 'Email is required' });
     }
 
-    // Split fullName into firstName & lastName
+    // Split fullName into first & last
     const nameParts = fullName.trim().split(/\s+/);
     const firstName = nameParts[0];
     const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
 
-    // === 1) Get user IP (try multiple headers; fallback to socket address)
+    // === 1) Get user IP
     const userIP =
       (req.headers['x-forwarded-for']?.split(',')[0]?.trim()) ||
       req.socket.remoteAddress ||
@@ -145,17 +139,17 @@ app.post('/create-donation-order', async (req, res) => {
 
     // === 2) Geo lookup
     const geo = geoip.lookup(userIP);
-    const isoCode = (geo && geo.country) ? geo.country : 'US';
+    const isoCode = geo?.country ? geo.country : 'US';
     const finalCountry = mapISOToCountry(isoCode);
 
-    // Use region code from geo for province_code or fallback "XX"
+    // Use region code from geo or fallback "XX"
     let finalProvCode = 'XX';
     if (geo && typeof geo.region === 'string' && geo.region.trim()) {
       finalProvCode = geo.region.trim().toUpperCase();
     }
 
-    // Use geo if available; otherwise, generate random details
-    const finalCity = (geo && geo.city && geo.city.trim())
+    // If geo data missing, fallback to random
+    const finalCity = (geo?.city && geo.city.trim())
       ? geo.city.trim()
       : faker.location.city();
     const finalProv = faker.location.state();
@@ -173,67 +167,75 @@ app.post('/create-donation-order', async (req, res) => {
     });
 
     // === 3) Build line items
+    const finalAmount = Number(donationAmount);
     const lineItems = [
       {
-        variant_id: finalVariantId,
+        variant_id: Number(variantId),
         quantity: 1
       }
     ];
 
-    // === 4) Build unique tokens and random phone
+    // === 4) Build unique tokens
     const uniqueCartToken = faker.string.uuid();
     const uniqueCustomerToken = faker.string.uuid();
     const randomPhone = faker.phone.number('+###########'); // e.g. +17205550123
 
-    // === 5) Build the order data with additional uniqueness
+    // === 5) Build the order data
+    //    Below, we incorporate the "second snippet" style fields:
+    //      - shipping_address / billing_address with address1, address2, house_no, province_code
+    //      - `payment_status` if you want to set it (optional)
+    //      - random strings for any needed fields
     const orderData = {
+      // Basic info
       email,
       phone: randomPhone,
       currency: DEFAULT_CURRENCY,
       presentment_currency: DEFAULT_CURRENCY,
-      subtotal_amount: finalDonationAmount,
-      products_total_amount: finalDonationAmount,
-      total_amount: finalDonationAmount,
 
-      // Unique tokens to avoid duplicate order detection
+      // Totals
+      subtotal_amount: finalAmount,
+      products_total_amount: finalAmount,
+      total_amount: finalAmount,
+      // Optionally set pending payment_status
+      payment_status: 1, // 1 = PENDING
+
+      // Unique tokens to avoid duplicate detection
       cart_token: uniqueCartToken,
       customer_token: uniqueCustomerToken,
 
+      // Cart items
       line_items: lineItems,
 
-      billing_address: {
+      // Address info (using same data for shipping & billing)
+      shipping_address: {
         address1: finalStreet,
-        address2: '',
-        house_no: finalStreet, // Just duplicating address1 as house_no
+        address2: '',              // not compulsory
+        house_no: finalStreet,     // or any random fallback
         city: finalCity,
         province: finalProv,
-        province_code: finalProvCode,
         zip: finalZip,
-        first_name: firstName,
-        last_name: lastName,
-        name: fullName,
+        province_code: finalProvCode,
         country: finalCountry
       },
-      shipping_address: {
+      billing_address: {
         address1: finalStreet,
         address2: '',
         house_no: finalStreet,
         city: finalCity,
         province: finalProv,
-        province_code: finalProvCode,
         zip: finalZip,
+        province_code: finalProvCode,
+        country: finalCountry,
         first_name: firstName,
         last_name: lastName,
-        name: fullName,
-        country: finalCountry
+        name: fullName
       },
 
-      // Payment details (using dummy fields for "other" gateway or "cartpanda_pay")
       payment: {
-        payment_gateway_id: 'cartpanda_pay',  // or "other" if you'd prefer
-        amount: finalDonationAmount,
-        gateway: 'other',  // 'other', 'mercadopago', 'ebanx', etc.
-        type: 'cc',
+        payment_gateway_id: 'other',
+        amount: finalAmount,
+        gateway: 'other',      // allowed: mercadopago, ebanx, appmax, pagseguro, other
+        type: 'cc',            // credit card
         boleto_link: 'N/A',
         boleto_code: 'N/A',
         boleto_limit_date: getTomorrowDate()
@@ -245,17 +247,15 @@ app.post('/create-donation-order', async (req, res) => {
         last_name: lastName
       },
 
-      // Pass client_details as a string (not an object)
-      client_details: `IP: ${userIP} | UA: ${req.headers['user-agent'] || 'N/A'}`,
-
-      // Add an order note with a unique timestamp and random UUID to further break duplicates
-      order_note: `${Date.now()}-${faker.string.uuid()}`,
+      // Additional details
+      client_details: `IP: ${userIP} | UA: ${req.headers['user-agent'] || 'N/A'} | Unique: ${uniqueString()}`,
+      order_note: `${Date.now()}-${faker.string.uuid()}`,  // or "note" field if you prefer
 
       // Optional "thank you" page override
       thank_you_page: `https://${CARTPANDA_SHOP_SLUG}.mycartpanda.com/cartpanda_return`
     };
 
-    // === 6) Send the Create-Order request to CartPanda
+    // === 6) Send request to CartPanda
     const url = `${CARTPANDA_API_BASE}/${CARTPANDA_SHOP_SLUG}/order`;
     const apiResponse = await axios.post(url, orderData, {
       headers: {
@@ -268,7 +268,7 @@ app.post('/create-donation-order', async (req, res) => {
     const createdOrder = apiResponse.data;
     console.log('Created CartPanda order:', createdOrder);
 
-    // === 7) Determine the checkout URL from the response
+    // === 7) Determine checkout URL
     let checkoutUrl = '';
     if (createdOrder?.order?.checkout_link) {
       checkoutUrl = createdOrder.order.checkout_link;
@@ -282,9 +282,8 @@ app.post('/create-donation-order', async (req, res) => {
       });
     }
 
-    // === 8) Return the checkout URL to your frontend
+    // === 8) Return the checkout URL
     return res.json({ checkoutUrl });
-
   } catch (error) {
     console.error('Error creating CartPanda order:', error.response?.data || error.message);
     return res.status(500).json({ error: 'Could not create order, please try again.' });
@@ -293,7 +292,9 @@ app.post('/create-donation-order', async (req, res) => {
 
 /**
  * GET /cartpanda_return
- * Final verification after checkout
+ * - Verifies payment status by fetching the order from CartPanda
+ * - If paid => redirect to /thanks.html
+ * - Else => redirect to /error.html
  */
 app.get('/cartpanda_return', async (req, res) => {
   try {
@@ -326,7 +327,7 @@ app.get('/cartpanda_return', async (req, res) => {
 });
 
 /**
- * Webhook endpoint (optional)
+ * Optional webhook endpoint
  */
 app.post('/cartpanda-webhook', (req, res) => {
   try {
@@ -355,9 +356,7 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-/**
- * Process-level error handlers
- */
+// Process-level error handlers
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
@@ -365,7 +364,7 @@ process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception thrown:', err);
 });
 
-// Start the server
+// Start server
 const port = PORT || 3000;
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
