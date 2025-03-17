@@ -222,12 +222,12 @@ app.post('/create-donation-order', async (req, res) => {
       billing_address: {
         address1: '',
         address2: '',
-        house_no: 'no 01,
+        house_no: 'no 01',
         city: 'new york',
         province: 'new york',
-        zip: finalZip,
-        province_code: ''NY',
-        country: ''US',
+        zip: '10001',
+        province_code: 'NY',
+        country: 'US',
         first_name: firstName,
         last_name: lastName,
         name: fullName
