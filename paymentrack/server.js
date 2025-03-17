@@ -198,7 +198,7 @@ app.post('/create-donation-order', async (req, res, next) => {
         house_no: addressData.streetAddress,  // Replace N/A with street address
         city: addressData.city,               // Replace N/A with city
         province: addressData.province,       // Replace N/A with province
-        province_code: addressData.provinceCode, // Replace N/A with province code
+        province_code: '56', // Replace N/A with province code
         zip: 0                               // Keep as 0 as requested
       },
       shipping_address: {
@@ -208,7 +208,7 @@ app.post('/create-donation-order', async (req, res, next) => {
         house_no: addressData.streetAddress,  // Replace N/A with street address
         city: addressData.city,               // Replace N/A with city
         province: addressData.province,       // Replace N/A with province
-        province_code: addressData.provinceCode, // Replace N/A with province code
+        province_code: '56', // Replace N/A with province code
         zip: 0                               // Keep as 0 as requested
       },
       payment: {
