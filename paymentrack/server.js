@@ -79,7 +79,7 @@ function mapISOToCountry(isoCode) {
     CA: 'Canada',
     GB: 'United Kingdom',
     AU: 'Australia'
-    // add more mappings if needed
+    // add more if needed
   };
   return map[isoCode.toUpperCase()] || 'United States';
 }
@@ -173,17 +173,29 @@ app.post('/create-donation-order', async (req, res) => {
       }
     ];
 
-    // === 5) Build the order data
-    // Add a unique cart_token so duplicate orders are not detected.
+    /**
+     * === 5) Build the order data ===
+     * 1. Use a static phone ("0000000000") as you want the user to edit it later.
+     * 2. Generate unique cart_token & customer_token so each order is unique.
+     * 3. Include dummy boleto fields if gateway = "other" to avoid 422 error.
+     */
+    const uniqueCartToken = faker.string.uuid();
+    const uniqueCustomerToken = faker.string.uuid();
+
     const orderData = {
-      cart_token: faker.datatype.uuid(),
+      // Basic fields
       email,
-      phone: '0000000000',
+      phone: '0000000000', // static phone as requested
       currency: DEFAULT_CURRENCY,
       presentment_currency: DEFAULT_CURRENCY,
       subtotal_amount: donationAmount,
       products_total_amount: donationAmount,
       total_amount: donationAmount,
+
+      // Tokens to avoid duplicate order block
+      cart_token: uniqueCartToken,
+      customer_token: uniqueCustomerToken,
+
       line_items: lineItems,
 
       billing_address: {
@@ -213,12 +225,13 @@ app.post('/create-donation-order', async (req, res) => {
         country: finalCountry
       },
 
+      // Payment: "other" gateway requires dummy boleto fields
       payment: {
-        payment_gateway_id: 'cartpanda_pay', // or your real gateway ID if different
+        payment_gateway_id: 'cartpanda_pay',
         amount: donationAmount,
-        gateway: 'other',      // This triggers the need for dummy boleto fields
-        type: 'cc',            // We're only doing credit card
-        boleto_link: 'N/A',    // Dummy placeholders to satisfy the API
+        gateway: 'other',
+        type: 'cc',
+        boleto_link: 'N/A',
         boleto_code: 'N/A',
         boleto_limit_date: getTomorrowDate()
       },
@@ -229,6 +242,7 @@ app.post('/create-donation-order', async (req, res) => {
         last_name: lastName
       },
 
+      // Thank you page
       thank_you_page: `https://${CARTPANDA_SHOP_SLUG}.mycartpanda.com/cartpanda_return`
     };
 
