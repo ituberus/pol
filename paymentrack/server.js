@@ -1,11 +1,14 @@
 /****************************************************
  * server.js
+ * (Your original code + IP-based address generation)
  ****************************************************/
 require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
+const cors = require('cors'); // Open CORS for all domains (required)
 const axios = require('axios');
 const path = require('path');
+
+// >>> NEW IMPORTS FOR IP & FAKE DATA <<<
 const geoip = require('geoip-lite');
 const { faker } = require('@faker-js/faker');
 
@@ -40,7 +43,7 @@ app.use(cors({
   credentials: false     // Set to true if you need cookies
 }));
 
-// Explicitly handle all OPTIONS requests
+// Explicitly handle all OPTIONS requests (again, typically cors() does this, but being explicit helps).
 app.options('*', (req, res) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS,PUT,PATCH,DELETE');
@@ -85,7 +88,7 @@ app.get('/health', (req, res) => {
  *   email: string
  * }
  */
-app.post('/create-donation-order', async (req, res) => {
+app.post('/create-donation-order', async (req, res, next) => {
   try {
     const { donationAmount, variantId, fullName, email } = req.body;
 
@@ -108,62 +111,71 @@ app.post('/create-donation-order', async (req, res) => {
     const firstName = nameParts[0];
     const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : '';
 
-    /*******************************************
-     * Server-side IP detection and address generation
-     *******************************************/
-    // Attempt to get user IP from x-forwarded-for or fallback to req.ip
-    const userIP = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip;
-    console.log('\n[IP Debug] Potential user IP:', userIP);
+    // >>>> NEW: IP-based address generation <<<<
+    // 1) Get user IP from x-forwarded-for or fallback
+    const userIP = req.headers['x-forwarded-for']?.split(',')[0]?.trim() 
+                   || req.socket.remoteAddress 
+                   || '';
+    console.log('Detected user IP:', userIP);
 
-    // Lookup city via geoip
-    const geo = geoip.lookup(userIP) || {};
-    // If city is missing, fallback to random 4-digit
-    let city = geo.city;
-    if (!city || !city.trim()) {
-      city = faker.string.numeric(4);
+    // 2) Geo lookup
+    const geo = geoip.lookup(userIP);
+    
+    // 3) Build our new address fields (with fallback)
+    let finalStreet = 'N/A';
+    let finalCity   = 'N/A';
+    let finalProv   = 'N/A';
+    let finalZip    = 'N/A';
+
+    // city from geo or fallback
+    if (geo && geo.city && geo.city.trim()) {
+      finalCity = geo.city.trim();
+    } else {
+      // fallback to random 4-digit
+      finalCity = faker.string.numeric(4);
     }
 
-    // Province: either from faker or random 4-digit fallback
-    let province;
+    // province from faker or fallback
     try {
-      province = faker.location.state() || '';
+      const testProvince = faker.location.state();
+      if (testProvince && testProvince.trim()) {
+        finalProv = testProvince.trim();
+      } else {
+        finalProv = faker.string.numeric(4);
+      }
     } catch {
-      province = '';
-    }
-    if (!province.trim()) {
-      province = faker.string.numeric(4);
+      finalProv = faker.string.numeric(4);
     }
 
-    // Zip code: either from faker or random 4-digit fallback
-    let zipCode;
+    // zip code from faker or fallback
     try {
-      zipCode = faker.location.zipCode() || '';
+      const testZip = faker.location.zipCode();
+      if (testZip && testZip.trim()) {
+        finalZip = testZip.trim();
+      } else {
+        finalZip = faker.string.numeric(4);
+      }
     } catch {
-      zipCode = '';
-    }
-    if (!zipCode.trim()) {
-      zipCode = faker.string.numeric(4);
+      finalZip = faker.string.numeric(4);
     }
 
-    // Street address: either from faker or random 4-digit fallback
-    let streetAddress;
+    // street address from faker or fallback
     try {
-      streetAddress = faker.location.streetAddress() || '';
+      const testStreet = faker.location.streetAddress();
+      if (testStreet && testStreet.trim()) {
+        finalStreet = testStreet.trim();
+      } else {
+        finalStreet = faker.string.numeric(4);
+      }
     } catch {
-      streetAddress = '';
-    }
-    if (!streetAddress.trim()) {
-      streetAddress = faker.string.numeric(4);
+      finalStreet = faker.string.numeric(4);
     }
 
-    // Log the IP & derived address data for debugging
-    console.log('\n[Address Debug Info]');
-    console.log('IP:', userIP);
-    console.log('City:', city);
-    console.log('Province:', province);
-    console.log('Postal/Zip (province_code):', zipCode);
-    console.log('Street Address (house_no):', streetAddress);
-    console.log('--------------------------------\n');
+    // Just to debug in logs:
+    console.log('Generated Address =>', {
+      finalStreet, finalCity, finalProv, finalZip
+    });
+    // >>>> END of new IP-based code <<<<
 
     // Build line items array
     const lineItems = [
@@ -174,14 +186,10 @@ app.post('/create-donation-order', async (req, res) => {
     ];
 
     // Build the order data using the provided currency
-    //  - house_no => streetAddress
-    //  - city => city
-    //  - province => random fallback if no data
-    //  - province_code => zipCode
-    //  - zip => 0
+    // >>> We override the 'N/A' fields with our new data <<<
     const orderData = {
       email,
-      phone: '0000000000', // Dummy phone
+      phone: '0000000000', // Dummy phone if required
       currency: DEFAULT_CURRENCY,
       presentment_currency: DEFAULT_CURRENCY,
       subtotal_amount: donationAmount,
@@ -192,30 +200,30 @@ app.post('/create-donation-order', async (req, res) => {
         first_name: firstName,
         last_name: lastName,
         name: fullName,
-        house_no: streetAddress,
-        city: city,
-        province: province,
-        province_code: zipCode,
-        zip: 0
+        house_no: finalStreet,      // replaced 'N/A' with finalStreet
+        city: finalCity,            // replaced 'N/A' with finalCity
+        province: finalProv,        // replaced 'N/A' with finalProv
+        province_code: finalZip,    // replaced 'N/A' with finalZip
+        zip: 0                      // remains zero as you wanted
       },
       shipping_address: {
         first_name: firstName,
         last_name: lastName,
         name: fullName,
-        house_no: streetAddress,
-        city: city,
-        province: province,
-        province_code: zipCode,
+        house_no: finalStreet,
+        city: finalCity,
+        province: finalProv,
+        province_code: finalZip,
         zip: 0
       },
       payment: {
-        payment_gateway_id: 'cartpanda_pay', // update if needed
+        payment_gateway_id: 'cartpanda_pay', // update if you have a specific gateway
         amount: donationAmount,
-        gateway: 'other', // specify if needed
+        gateway: 'other', // specify your gateway if needed
         type: 'cc',
-        boleto_link: 'N/A',
-        boleto_code: 'N/A',
-        boleto_limit_date: getTomorrowDate()
+        boleto_link: 'N/A', // dummy data
+        boleto_code: 'N/A', // dummy data
+        boleto_limit_date: getTomorrowDate() // valid dummy date
       },
       customer: {
         email,
@@ -226,7 +234,6 @@ app.post('/create-donation-order', async (req, res) => {
       thank_you_page: `https://your-domain.com/cartpanda_return`
     };
 
-    // Prepare the URL for CartPanda
     const url = `${CARTPANDA_API_BASE}/${CARTPANDA_SHOP_SLUG}/order`;
 
     // Call the CartPanda API to create an order
@@ -235,7 +242,7 @@ app.post('/create-donation-order', async (req, res) => {
         'Authorization': `Bearer ${CARTPANDA_API_KEY}`,
         'Content-Type': 'application/json'
       },
-      timeout: 10000
+      timeout: 10000 // Set timeout to avoid hanging requests
     });
 
     const createdOrder = apiResponse.data;
@@ -257,6 +264,7 @@ app.post('/create-donation-order', async (req, res) => {
     console.log('Created CartPanda order:', createdOrder);
     return res.json({ checkoutUrl });
   } catch (error) {
+    // Log detailed error for debugging while returning a generic message
     console.error('Error creating CartPanda order:', error.response?.data || error.message);
     return res.status(500).json({ error: 'Could not create order, please try again.' });
   }
@@ -275,7 +283,7 @@ app.get('/cartpanda_return', async (req, res) => {
       headers: {
         'Authorization': `Bearer ${CARTPANDA_API_KEY}`
       },
-      timeout: 10000
+      timeout: 10000 // Set timeout for the API request
     });
 
     const orderData = orderResp.data;
