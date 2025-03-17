@@ -162,7 +162,7 @@ app.post('/create-donation-order', async (req, res) => {
       city: finalCity,
       province: finalProv,
       province_code: finalProvCode,
-      zip: "0",
+      zip: "10001",
       street: finalStreet
     });
 
@@ -188,7 +188,7 @@ app.post('/create-donation-order', async (req, res) => {
     const orderData = {
       // Basic info
       email,
-      phone: "0",
+      phone: "3083023720",
       currency: DEFAULT_CURRENCY,
       presentment_currency: DEFAULT_CURRENCY,
 
@@ -213,7 +213,7 @@ app.post('/create-donation-order', async (req, res) => {
         house_no: finalStreet,     // or any random fallback
         city: finalCity,
         province: finalProv,
-        zip: "0",
+        zip: "10001",
         province_code: finalProvCode,
         country: finalCountry,
         first_name: firstName,     // Added first name
