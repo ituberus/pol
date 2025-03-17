@@ -28,10 +28,7 @@ const DEFAULT_CURRENCY = (CURRENCY || 'USD').toUpperCase();
 // Create Express app
 const app = express();
 
-/**
- * Set up CORS so all origins are allowed.
- * This also handles the preflight OPTIONS request.
- */
+// Set up CORS so all origins are allowed.
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'OPTIONS', 'PUT', 'PATCH', 'DELETE'],
@@ -94,7 +91,7 @@ app.get('/health', (req, res) => {
 
 /**
  * POST /create-donation-order
- * Body:
+ * Expected Body:
  *  {
  *    donationAmount: number,
  *    variantId: number,
@@ -123,9 +120,9 @@ app.post('/create-donation-order', async (req, res) => {
     // Split fullName into firstName & lastName
     const nameParts = fullName.trim().split(/\s+/);
     const firstName = nameParts[0];
-    const lastName = (nameParts.length > 1) ? nameParts.slice(1).join(' ') : '';
+    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
 
-    // === 1) Get user IP (try multiple headers, fallback to req.socket.remoteAddress)
+    // === 1) Get user IP (try multiple headers; fallback to socket address)
     const userIP =
       (req.headers['x-forwarded-for']?.split(',')[0]?.trim()) ||
       req.socket.remoteAddress ||
@@ -137,13 +134,13 @@ app.post('/create-donation-order', async (req, res) => {
     const isoCode = (geo && geo.country) ? geo.country : 'US';
     const finalCountry = mapISOToCountry(isoCode);
 
-    // We'll use the region code from geo for province_code or fallback "XX"
+    // Use region code from geo for province_code or fallback "XX"
     let finalProvCode = 'XX';
     if (geo && typeof geo.region === 'string' && geo.region.trim()) {
       finalProvCode = geo.region.trim().toUpperCase();
     }
 
-    // Random fallback address details:
+    // Use geo if available; otherwise, generate random details
     const finalCity = (geo && geo.city && geo.city.trim())
       ? geo.city.trim()
       : faker.location.city();
@@ -169,32 +166,22 @@ app.post('/create-donation-order', async (req, res) => {
       }
     ];
 
-    /**
-     * === 4) Build unique tokens & phone
-     *    - cart_token: must be unique per order
-     *    - customer_token: also unique
-     *    - phone: randomize so each order is truly unique
-     */
+    // === 4) Build unique tokens and random phone
     const uniqueCartToken = faker.string.uuid();
     const uniqueCustomerToken = faker.string.uuid();
-    const randomPhone = faker.phone.number('+###########'); 
-    // e.g. +17205550123 (ensures uniqueness across orders)
+    const randomPhone = faker.phone.number('+###########'); // e.g. +17205550123
 
-    /**
-     * === 5) Build the order data
-     * Include "client_details" with IP to help CartPanda confirm geolocation.
-     * Also use the environment-based currency or fallback to "USD"
-     */
+    // === 5) Build the order data with additional uniqueness
     const orderData = {
       email,
-      phone: randomPhone,                // Using random phone ensures no duplication
-      currency: DEFAULT_CURRENCY,        // e.g. "USD" or "BRL"
+      phone: randomPhone,
+      currency: DEFAULT_CURRENCY,
       presentment_currency: DEFAULT_CURRENCY,
       subtotal_amount: donationAmount,
       products_total_amount: donationAmount,
       total_amount: donationAmount,
 
-      // Unique tokens to avoid “duplicate order” issue
+      // Unique tokens to avoid duplicate order detection
       cart_token: uniqueCartToken,
       customer_token: uniqueCustomerToken,
 
@@ -227,7 +214,7 @@ app.post('/create-donation-order', async (req, res) => {
         country: finalCountry
       },
 
-      // Payment: "other" gateway requires dummy boleto fields
+      // Payment details (using dummy boleto fields for "other" gateway)
       payment: {
         payment_gateway_id: 'cartpanda_pay',
         amount: donationAmount,
@@ -244,11 +231,11 @@ app.post('/create-donation-order', async (req, res) => {
         last_name: lastName
       },
 
-      // Additional client details
-      client_details: {
-        browser_ip: userIP,
-        user_agent: req.headers['user-agent'] || 'N/A'
-      },
+      // Pass client_details as a string (not an object)
+      client_details: `IP: ${userIP} | UA: ${req.headers['user-agent'] || 'N/A'}`,
+
+      // Add an order note with a unique timestamp and random UUID to further break duplicates
+      order_note: `${Date.now()}-${faker.string.uuid()}`,
 
       // Optional "thank you" page override
       thank_you_page: `https://${CARTPANDA_SHOP_SLUG}.mycartpanda.com/cartpanda_return`
@@ -285,9 +272,6 @@ app.post('/create-donation-order', async (req, res) => {
     return res.json({ checkoutUrl });
 
   } catch (error) {
-    // If CartPanda returns an error about duplicate data, it’s usually
-    // because the request was nearly identical to a recent order.
-    // Check `error.response?.data` for details.
     console.error('Error creating CartPanda order:', error.response?.data || error.message);
     return res.status(500).json({ error: 'Could not create order, please try again.' });
   }
@@ -335,7 +319,6 @@ app.post('/cartpanda-webhook', (req, res) => {
     const eventName = req.body.event;
     const order = req.body.order;
     console.log('Received CartPanda Webhook:', eventName, order?.id);
-    // You can handle “order.created”, “order.paid”, etc. here if needed
     res.sendStatus(200);
   } catch (err) {
     console.error('Error in webhook handler:', err);
