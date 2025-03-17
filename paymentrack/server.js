@@ -162,7 +162,7 @@ app.post('/create-donation-order', async (req, res) => {
       city: finalCity,
       province: finalProv,
       province_code: finalProvCode,
-      zip: "",
+      zip: "0",
       street: finalStreet
     });
 
@@ -188,7 +188,7 @@ app.post('/create-donation-order', async (req, res) => {
     const orderData = {
       // Basic info
       email,
-      phone: "",
+      phone: "0",
       currency: DEFAULT_CURRENCY,
       presentment_currency: DEFAULT_CURRENCY,
 
