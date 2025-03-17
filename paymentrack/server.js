@@ -185,7 +185,7 @@ app.post('/create-donation-order', async (req, res) => {
     const orderData = {
       // Basic fields
       email,
-      phone: '0000000000', // static phone as requested
+      phone: '0000000012', // static phone as requested
       currency: DEFAULT_CURRENCY,
       presentment_currency: DEFAULT_CURRENCY,
       subtotal_amount: donationAmount,
