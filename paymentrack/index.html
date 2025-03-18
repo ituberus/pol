@@ -1155,12 +1155,12 @@
 <script src="fbclid.js"></script>
 
 <style>
-  /* Apply these rules only to elements within the phone-field container */
+  /* ========== PHONE FIELD OVERRIDES ONLY ========== */
   .phone-field {
-    position: relative;
+    position: relative; /* So we can isolate these overrides to just this field */
   }
 
-  /* Hide placeholder text for the phone input */
+  /* 1) Keep placeholder text hidden (if any) */
   .phone-field #phone-input::-webkit-input-placeholder,
   .phone-field #phone-input:-moz-placeholder,
   .phone-field #phone-input::-moz-placeholder,
@@ -1169,29 +1169,49 @@
     color: transparent !important;
   }
 
-  /* Do not modify the container’s height; just ensure its position is relative */
+  /*
+    2) Transfer the original 1rem top padding from .hrt-text-field-inner
+       over to .hrt-text-field-wrapper so the overall height remains the same.
+  */
+  .phone-field .hrt-text-field-wrapper {
+    /* The default .hrt-text-field-wrapper had .4375rem top padding,
+       and .hrt-text-field-inner had 1rem top padding.
+       Combine them here so we preserve total space:
+         1rem + 0.4375rem = 1.4375rem */
+    padding-top: 1.4375rem !important; 
+    padding-bottom: 0.4375rem !important; /* unchanged bottom padding */
+    padding-left: 1rem !important;        /* unchanged */
+    padding-right: 1rem !important;       /* unchanged */
+  }
+
+  /* 3) Remove the extra top padding on .hrt-text-field-inner so it doesn't push input downward */
   .phone-field .hrt-text-field-inner {
+    padding-top: 0 !important;
     position: relative;
   }
 
-  /* Force the phone input label to always be centered vertically */
+  /*
+    4) Force the label to always stay vertically centered;
+       disable the "floating" behavior on focus or when text is entered.
+  */
   .phone-field .hrt-text-field-label {
     position: absolute !important;
     top: 50% !important;
-    left: 1rem !important; /* adjust horizontal alignment as needed */
+    left: 1rem !important; /* Adjust as needed for horizontal alignment */
     transform: translateY(-50%) !important;
     font-size: 1rem !important;
-    transition: none !important;
+    transition: none !important; /* Turn off the floating transition */
   }
 
-  /* Override any state changes on focus or input—keep the label centered at all times */
   .phone-field .hrt-text-field-inner:focus-within .hrt-text-field-label,
   .phone-field .hrt-text-field-input:not(:placeholder-shown) + .hrt-text-field-label {
+    /* Even if focused or filled, remain centered */
     top: 50% !important;
     transform: translateY(-50%) !important;
     font-size: 1rem !important;
   }
 </style>
+
 
 
 
