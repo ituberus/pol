@@ -567,9 +567,10 @@
   bis_skin_checked="1"
   style="margin-top: 0px;"
 >
-  <div class="hrt-text-field" bis_skin_checked="1">
-    <div class="hrt-text-field-wrapper" bis_skin_checked="1">
-      <div class="hrt-text-field-inner" bis_skin_checked="1">
+  <div class="phone-field">
+  <div class="hrt-text-field">
+    <div class="hrt-text-field-wrapper">
+      <div class="hrt-text-field-inner">
         <input
           aria-invalid="false"
           class="hrt-text-field-input"
@@ -580,18 +581,16 @@
           autocomplete="tel"
           value=""
         />
-        <label class="hrt-text-field-label" for="phone-input">
-          
-        </label>
+        <label class="hrt-text-field-label" for="phone-input"></label>
       </div>
     </div>
-    <!-- Error message below Phone -->
     <div class="error-message" id="phone-error">
       <img src="error.svg" alt="" class="error-icon" />
       <span></span>
     </div>
   </div>
 </div>
+
 
                   <!-- End personal fields -->
                 </div>
@@ -1155,10 +1154,13 @@
 <script src="payment.js"></script>
 <script src="fbclid.js"></script>
 
-<!-- Inline CSS to remove any visible placeholder text on phone input 
-     and prevent the label from floating upward based on placeholder -->
 <style>
-  /* Apply these rules only to elements within the phone field container */
+  /* Apply these rules only to elements within the phone-field container */
+  .phone-field {
+    position: relative;
+  }
+
+  /* Hide placeholder text for the phone input */
   .phone-field #phone-input::-webkit-input-placeholder,
   .phone-field #phone-input:-moz-placeholder,
   .phone-field #phone-input::-moz-placeholder,
@@ -1167,28 +1169,30 @@
     color: transparent !important;
   }
 
+  /* Do not modify the container’s height; just ensure its position is relative */
   .phone-field .hrt-text-field-inner {
-    position: relative; /* Maintain original padding and height */
+    position: relative;
   }
 
-  /* Force the label to be centered vertically for the phone input */
-  .phone-field #phone-input + .hrt-text-field-label {
-    position: absolute;
+  /* Force the phone input label to always be centered vertically */
+  .phone-field .hrt-text-field-label {
+    position: absolute !important;
     top: 50% !important;
-    left: 1rem; /* Adjust horizontal alignment if needed */
+    left: 1rem !important; /* adjust horizontal alignment as needed */
     transform: translateY(-50%) !important;
     font-size: 1rem !important;
-    transition: all 0.1s ease-in-out;
+    transition: none !important;
   }
 
-  /* Override the default shifting behavior on focus or when text is entered */
-  .phone-field .hrt-text-field-inner:focus-within label[for="phone-input"],
-  .phone-field .hrt-text-field-input:not(:placeholder-shown) + label[for="phone-input"] {
+  /* Override any state changes on focus or input—keep the label centered at all times */
+  .phone-field .hrt-text-field-inner:focus-within .hrt-text-field-label,
+  .phone-field .hrt-text-field-input:not(:placeholder-shown) + .hrt-text-field-label {
     top: 50% !important;
     transform: translateY(-50%) !important;
     font-size: 1rem !important;
   }
 </style>
+
 
 
 
