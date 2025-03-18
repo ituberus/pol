@@ -1157,60 +1157,63 @@
 <script src="fbclid.js"></script>
 
 <style>
-  /* ========== PHONE FIELD OVERRIDES ONLY ========== */
-  .phone-field {
-    position: relative; /* So we can isolate these overrides to just this field */
+  /* =========== PHONE FIELD OVERRIDE =========== */
+  /* 1) Constrain all custom rules to .phone-field so no other field is affected */
+  .phone-field .hrt-text-field-wrapper {
+    /* Make the wrapper a flex container to center children vertically */
+    display: flex !important;
+    align-items: center !important;
+
+    /* Keep or set your original border/radius: */
+    border-radius: 0.75rem !important; 
+    border: 1px solid #c0bdb8 !important;
+    background-color: #fff !important;
+
+    /* Control the overall height/padding of the field: */
+    height: 3rem !important; /* Adjust if you want it taller/shorter */
+    padding: 0 1rem !important; 
+    box-sizing: border-box !important;
+    cursor: text !important;
   }
 
-  /* 1) Keep placeholder text hidden (if any) */
+  /* 2) Remove any extra top/bottom padding from the inner container that could push input down */
+  .phone-field .hrt-text-field-inner {
+    display: flex !important;
+    align-items: center !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    height: 100% !important;
+    position: relative !important;
+  }
+
+  /* 3) Ensure the phone input itself has no extra margins and is vertically centered */
+  .phone-field #phone-input {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    outline: none !important;
+
+    /* Use a normal line-height to help keep it centered */
+    line-height: 1.5 !important; 
+    font-size: 1rem !important;
+    background: transparent !important;
+  }
+
+  /* 4) If you’re not using a label, hide it so it doesn’t float or take space */
+  .phone-field .hrt-text-field-label {
+    display: none !important;
+  }
+
+  /* 5) Hide any placeholder text (if it’s truly unused) */
   .phone-field #phone-input::-webkit-input-placeholder,
   .phone-field #phone-input:-moz-placeholder,
   .phone-field #phone-input::-moz-placeholder,
   .phone-field #phone-input:-ms-input-placeholder,
   .phone-field #phone-input::placeholder {
     color: transparent !important;
-  }
-
-  /*
-    2) Transfer the original 1rem top padding from .hrt-text-field-inner
-       over to .hrt-text-field-wrapper so the overall height remains the same.
-  */
-  .phone-field .hrt-text-field-wrapper {
-    /* The default .hrt-text-field-wrapper had .4375rem top padding,
-       and .hrt-text-field-inner had 1rem top padding.
-       Combine them here so we preserve total space:
-         1rem + 0.4375rem = 1.4375rem */
-    padding-top: 1.4375rem !important; 
-    padding-bottom: 0.4375rem !important; /* unchanged bottom padding */
-    padding-left: 1rem !important;        /* unchanged */
-    padding-right: 1rem !important;       /* unchanged */
-  }
-
-  /* 3) Remove the extra top padding on .hrt-text-field-inner so it doesn't push input downward */
-  .phone-field .hrt-text-field-inner {
-    padding-top: 0 !important;
-    position: relative;
-  }
-
-  /*
-    4) Force the label to always stay vertically centered;
-       disable the "floating" behavior on focus or when text is entered.
-  */
-  .phone-field .hrt-text-field-label {
-    position: absolute !important;
-    top: 50% !important;
-    left: 1rem !important; /* Adjust as needed for horizontal alignment */
-    transform: translateY(-50%) !important;
-    font-size: 1rem !important;
-    transition: none !important; /* Turn off the floating transition */
-  }
-
-  .phone-field .hrt-text-field-inner:focus-within .hrt-text-field-label,
-  .phone-field .hrt-text-field-input:not(:placeholder-shown) + .hrt-text-field-label {
-    /* Even if focused or filled, remain centered */
-    top: 50% !important;
-    transform: translateY(-50%) !important;
-    font-size: 1rem !important;
   }
 </style>
 
