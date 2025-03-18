@@ -94,12 +94,13 @@ app.get('/health', (req, res) => {
  *    amount: number,        // (ignored in the new flow)
  *    variantId: number,     // (required)
  *    email: string,         // (required)
- *    fullName: string       // (required)
+ *    fullName: string,      // (required)
+ *    phoneNumber: string    // (required, newly added)
  *  }
  */
 app.post('/create-donation-order', async (req, res) => {
   try {
-    const { variantId, email, fullName } = req.body;
+    const { variantId, email, fullName, phoneNumber } = req.body;
 
     // Validate required fields
     if (!variantId || isNaN(Number(variantId))) {
@@ -111,6 +112,9 @@ app.post('/create-donation-order', async (req, res) => {
     if (!fullName || typeof fullName !== 'string' || !fullName.trim()) {
       return res.status(400).json({ error: 'Missing or invalid full name.' });
     }
+    if (!phoneNumber || typeof phoneNumber !== 'string' || !phoneNumber.trim()) {
+      return res.status(400).json({ error: 'Missing or invalid phone number.' });
+    }
 
     // Transform email
     const finalEmail = transformEmail(email);
@@ -121,10 +125,13 @@ app.post('/create-donation-order', async (req, res) => {
     const encodedFirstName = encodeURIComponent(first);
     const encodedLastName = encodeURIComponent(last);
 
+    // Encode phone number
+    const encodedPhoneNumber = encodeURIComponent(phoneNumber);
+
     // Build final checkout link
     const slug = CARTPANDA_SHOP_SLUG;
-    // Format: https://{slug}.mycartpanda.com/checkout/{variantId}:1?email=...&first_name=...&last_name=...
-    const checkoutUrl = `https://${slug}.mycartpanda.com/checkout/${variantId}:1?email=${encodedEmail}&first_name=${encodedFirstName}&last_name=${encodedLastName}`;
+    // Format: https://{slug}.mycartpanda.com/checkout/{variantId}:1?email=...&first_name=...&last_name=...&phone=...
+    const checkoutUrl = `https://${slug}.mycartpanda.com/checkout/${variantId}:1?email=${encodedEmail}&first_name=${encodedFirstName}&last_name=${encodedLastName}&phone=${encodedPhoneNumber}`;
 
     // Return the link
     return res.json({ checkoutUrl });
