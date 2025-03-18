@@ -1156,32 +1156,64 @@
 <script src="payment.js"></script>
 <script src="fbclid.js"></script>
 
-<div class="phone-field">
-  <div class="hrt-text-field">
-    <div class="hrt-text-field-wrapper">
-      <div class="hrt-text-field-inner">
-        <!-- This might be your specialized phone library input -->
-        <input
-          aria-invalid="false"
-          class="hrt-text-field-input"
-          id="phone-input"
-          placeholder=""
-          name="phoneNumber"
-          type="tel"
-          autocomplete="tel"
-          value=""
-        />
-        <!-- The label is hidden by CSS above, so it won't shift anything -->
-        <label class="hrt-text-field-label" for="phone-input"></label>
-      </div>
-    </div>
-    <!-- Optional error area -->
-    <div class="error-message" id="phone-error">
-      <img src="error.svg" alt="" class="error-icon" />
-      <span></span>
-    </div>
-  </div>
-</div>
+<style>
+/* =========================
+   PHONE FIELD OVERRIDES
+   ========================= */
+
+/* 1) Only target the .phone-field wrapper so other fields remain untouched. */
+.phone-field .hrt-text-field-wrapper {
+  /* Make the wrapper a flex container that vertically centers its content */
+  display: flex !important;
+  align-items: center !important;
+
+  /* Adjust these paddings to preserve the original overall height */
+  padding: 0.75rem 1rem !important; /* Example: total vertical space ~1.5rem */
+
+  /* Retain original border, radius, etc. if needed */
+  border: 1px solid #c0bdb8; /* or your original border color */
+  border-radius: 0.75rem;    /* or your original radius */
+  box-sizing: border-box;
+}
+
+/* 2) Remove top padding from .hrt-text-field-inner; 
+      use flex so the phone input sits in the middle. */
+.phone-field .hrt-text-field-inner {
+  display: flex !important;
+  align-items: center !important;
+  width: 100%;
+  padding: 0 !important;     /* remove extra top padding */
+  position: relative;        /* so error messages or icons can position if needed */
+}
+
+/* 3) Ensure the actual <input> (with flag) is centered and fills available width. */
+.phone-field #phone-input {
+  flex: 1;
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  line-height: normal;
+  border: none;      /* The parent wrapper already has the border */
+  outline: none;
+  background: transparent;
+}
+
+/* 4) If you don’t need a floating label (no placeholder text), just hide it entirely. */
+.phone-field .hrt-text-field-label {
+  display: none !important;
+}
+
+/* 5) Hide any default placeholder text (if it sneaks in) so it doesn’t shift the layout. */
+.phone-field #phone-input::-webkit-input-placeholder,
+.phone-field #phone-input:-moz-placeholder,
+.phone-field #phone-input::-moz-placeholder,
+.phone-field #phone-input:-ms-input-placeholder,
+.phone-field #phone-input::placeholder {
+  color: transparent !important;
+}
+</style>
+
 
 
 
