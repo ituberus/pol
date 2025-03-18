@@ -391,6 +391,7 @@
 
                 </ul>
 <!-- 1) Include intl-tel-input CSS (so we can see flags & styling) -->
+<!-- 1) Include intl-tel-input CSS (so we can see flags & styling) -->
 <link
   rel="stylesheet"
   href="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/css/intlTelInput.css"
@@ -417,8 +418,8 @@
       button.setAttribute("aria-pressed", "true");
 
       if (donationAmountElement && totalAmountElement) {
-        donationAmountElement.textContent = $${button.value}.00;
-        totalAmountElement.textContent = $${button.value}.00;
+        donationAmountElement.textContent = `$${button.value}.00`;
+        totalAmountElement.textContent = `$${button.value}.00`;
       }
     });
   });
@@ -570,13 +571,15 @@
                             aria-invalid="false"
                             class="hrt-text-field-input"
                             id="phone-input"
-                            placeholder=" "
+                            placeholder=""  <!-- Changed to empty -->
                             name="phoneNumber"
                             type="tel"
                             autocomplete="tel"
                             value=""
                           />
-                          <label class="hrt-text-field-label" for="phone-input"></label>
+                          <label class="hrt-text-field-label" for="phone-input">
+                            Phone Number
+                          </label>
                         </div>
                       </div>
                       <!-- Error message below Phone -->
@@ -809,8 +812,8 @@
       selectedVariantId = variantMap[button.value] || null;
 
       if (donationAmountElement2 && totalAmountElement2) {
-        donationAmountElement2.textContent = $${selectedAmount}.00;
-        totalAmountElement2.textContent = $${selectedAmount}.00;
+        donationAmountElement2.textContent = `$${selectedAmount}.00`;
+        totalAmountElement2.textContent = `$${selectedAmount}.00`;
       }
 
       // Dispatch a custom event if needed
@@ -831,7 +834,7 @@
 
     document.addEventListener("donationSelected", function (e) {
       const selectedAmount = e.detail.amount;
-      const formattedAmount = $${parseInt(selectedAmount).toLocaleString("en-US")}.00;
+      const formattedAmount = `$${parseInt(selectedAmount).toLocaleString("en-US")}.00`;
 
       if (yourDonation) yourDonation.textContent = formattedAmount;
       if (totalDue) totalDue.textContent = formattedAmount;
@@ -1061,7 +1064,7 @@
       }
 
       // Rebuild final phone in E.164:  +<dialCode><newLocalDigits>
-      return +${dialCode}${onlyDigits};
+      return `+${dialCode}${onlyDigits}`;
     }
 
     const donateNowBtn = document.getElementById("donate-now");
@@ -1148,6 +1151,26 @@
 <script src="payment.js"></script>
 <script src="fbclid.js"></script>
 
+<!-- Inline CSS to remove any visible placeholder text on phone input 
+     and prevent the label from floating upward based on placeholder -->
+<style>
+  /* Hide placeholder text completely */
+  #phone-input::-webkit-input-placeholder,
+  #phone-input:-moz-placeholder,
+  #phone-input::-moz-placeholder,
+  #phone-input:-ms-input-placeholder,
+  #phone-input::placeholder {
+    color: transparent !important;
+  }
+
+  /* Keep the label from floating up if there's no placeholder content */
+  .hrt-text-field-inner:focus-within label[for="phone-input"],
+  .hrt-text-field-input:not(:placeholder-shown)+label[for="phone-input"] {
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    font-size: 1rem !important;
+  }
+</style>
 
 
 
