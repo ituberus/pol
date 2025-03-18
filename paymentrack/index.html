@@ -1156,66 +1156,32 @@
 <script src="payment.js"></script>
 <script src="fbclid.js"></script>
 
-<style>
-  /* =========== PHONE FIELD OVERRIDE =========== */
-  /* 1) Constrain all custom rules to .phone-field so no other field is affected */
-  .phone-field .hrt-text-field-wrapper {
-    /* Make the wrapper a flex container to center children vertically */
-    display: flex !important;
-    align-items: center !important;
-
-    /* Keep or set your original border/radius: */
-    border-radius: 0.75rem !important; 
-    border: 1px solid #c0bdb8 !important;
-    background-color: #fff !important;
-
-    /* Control the overall height/padding of the field: */
-    height: 3rem !important; /* Adjust if you want it taller/shorter */
-    padding: 0 1rem !important; 
-    box-sizing: border-box !important;
-    cursor: text !important;
-  }
-
-  /* 2) Remove any extra top/bottom padding from the inner container that could push input down */
-  .phone-field .hrt-text-field-inner {
-    display: flex !important;
-    align-items: center !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    height: 100% !important;
-    position: relative !important;
-  }
-
-  /* 3) Ensure the phone input itself has no extra margins and is vertically centered */
-  .phone-field #phone-input {
-    display: block !important;
-    width: 100% !important;
-    height: auto !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    border: none !important;
-    outline: none !important;
-
-    /* Use a normal line-height to help keep it centered */
-    line-height: 1.5 !important; 
-    font-size: 1rem !important;
-    background: transparent !important;
-  }
-
-  /* 4) If you’re not using a label, hide it so it doesn’t float or take space */
-  .phone-field .hrt-text-field-label {
-    display: none !important;
-  }
-
-  /* 5) Hide any placeholder text (if it’s truly unused) */
-  .phone-field #phone-input::-webkit-input-placeholder,
-  .phone-field #phone-input:-moz-placeholder,
-  .phone-field #phone-input::-moz-placeholder,
-  .phone-field #phone-input:-ms-input-placeholder,
-  .phone-field #phone-input::placeholder {
-    color: transparent !important;
-  }
-</style>
+<div class="phone-field">
+  <div class="hrt-text-field">
+    <div class="hrt-text-field-wrapper">
+      <div class="hrt-text-field-inner">
+        <!-- This might be your specialized phone library input -->
+        <input
+          aria-invalid="false"
+          class="hrt-text-field-input"
+          id="phone-input"
+          placeholder=""
+          name="phoneNumber"
+          type="tel"
+          autocomplete="tel"
+          value=""
+        />
+        <!-- The label is hidden by CSS above, so it won't shift anything -->
+        <label class="hrt-text-field-label" for="phone-input"></label>
+      </div>
+    </div>
+    <!-- Optional error area -->
+    <div class="error-message" id="phone-error">
+      <img src="error.svg" alt="" class="error-icon" />
+      <span></span>
+    </div>
+  </div>
+</div>
 
 
 
