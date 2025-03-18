@@ -987,7 +987,7 @@
         "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/js/utils.js",
       geoIpLookup: function (callback) {
         // 1st try ip-api.com (HTTP; up to 45 req/min)
-        fetch("http://ip-api.com/json/")
+        fetch("https://ip-api.com/json/")
           .then(function (res) {
             return res.json();
           })
@@ -1040,7 +1040,8 @@
       const dialCode = countryData.dialCode; // e.g. "1"
 
       // Get the "national" portion (local number) without the +dialCode
-      let nationalNumber = iti.getNumberForType(window.intlTelInputUtils.numberType.NATIONAL);
+      let nationalNumber = iti.getNumber(intlTelInputUtils.numberFormat.NATIONAL);
+
       // Remove all non-digits to find the "first 3" reliably
       let onlyDigits = nationalNumber.replace(/\D+/g, "");
 
