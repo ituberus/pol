@@ -395,6 +395,13 @@
   rel="stylesheet"
   href="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/css/intlTelInput.css"
 />
+<!-- Custom style to hide external intl-tel-input UI when unfocused -->
+<style>
+  .hide-external .iti__flag-container,
+  .hide-external .iti__selected-flag {
+    display: none !important;
+  }
+</style>
 
 <!-- Donation buttons: update aria-pressed and donation summary text -->
 <script>
@@ -565,16 +572,16 @@
                     <div class="hrt-text-field" bis_skin_checked="1">
                       <div class="hrt-text-field-wrapper" bis_skin_checked="1">
                         <div class="hrt-text-field-inner" bis_skin_checked="1">
-                          <!-- Removed placeholder attribute and added inline style for centered text -->
+                          <!-- We'll give it an ID of "phone-input" -->
                           <input
                             aria-invalid="false"
                             class="hrt-text-field-input"
                             id="phone-input"
+                            placeholder=" "
                             name="phoneNumber"
                             type="tel"
                             autocomplete="tel"
                             value=""
-                            style="text-align: center;"
                           />
                           <label class="hrt-text-field-label" for="phone-input">
                             Phone Number
@@ -1024,6 +1031,14 @@
               });
           });
       },
+    });
+
+    // Toggle external intl-tel-input UI visibility based on focus
+    phoneInput.addEventListener("focus", function() {
+      phoneInput.parentElement.classList.remove("hide-external");
+    });
+    phoneInput.addEventListener("blur", function() {
+      phoneInput.parentElement.classList.add("hide-external");
     });
 
     // Helper function to modify the phone number prior to submission
