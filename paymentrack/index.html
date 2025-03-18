@@ -1167,11 +1167,27 @@
     color: transparent !important;
   }
 
-  /* Adjust label vertical alignment by modifying the transform */
+  /* Remove extra top padding from the input container */
+  .hrt-text-field-inner {
+    padding-top: 0 !important;
+    position: relative;
+  }
+
+  /* Ensure the phone input label is vertically centered at all times */
+  #phone-input + .hrt-text-field-label {
+    position: absolute;
+    top: 50% !important;
+    left: 1rem; /* adjust if needed for horizontal alignment */
+    transform: translateY(-50%) !important;
+    font-size: 1rem !important;
+    transition: all 0.1s ease-in-out;
+  }
+
+  /* Maintain centered label when input is focused or contains text */
   .hrt-text-field-inner:focus-within label[for="phone-input"],
   .hrt-text-field-input:not(:placeholder-shown) + label[for="phone-input"] {
     top: 50% !important;
-    transform: translateY(-70%) !important; /* increased shift upward */
+    transform: translateY(-50%) !important;
     font-size: 1rem !important;
   }
 </style>
