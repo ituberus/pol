@@ -1158,39 +1158,38 @@
 <!-- Inline CSS to remove any visible placeholder text on phone input 
      and prevent the label from floating upward based on placeholder -->
 <style>
-  /* Hide placeholder text completely */
-  #phone-input::-webkit-input-placeholder,
-  #phone-input:-moz-placeholder,
-  #phone-input::-moz-placeholder,
-  #phone-input:-ms-input-placeholder,
-  #phone-input::placeholder {
+  /* Apply these rules only to elements within the phone field container */
+  .phone-field #phone-input::-webkit-input-placeholder,
+  .phone-field #phone-input:-moz-placeholder,
+  .phone-field #phone-input::-moz-placeholder,
+  .phone-field #phone-input:-ms-input-placeholder,
+  .phone-field #phone-input::placeholder {
     color: transparent !important;
   }
 
-  /* Remove extra top padding from the input container */
-  .hrt-text-field-inner {
-    padding-top: 0 !important;
-    position: relative;
+  .phone-field .hrt-text-field-inner {
+    position: relative; /* Maintain original padding and height */
   }
 
-  /* Ensure the phone input label is vertically centered at all times */
-  #phone-input + .hrt-text-field-label {
+  /* Force the label to be centered vertically for the phone input */
+  .phone-field #phone-input + .hrt-text-field-label {
     position: absolute;
     top: 50% !important;
-    left: 1rem; /* adjust if needed for horizontal alignment */
+    left: 1rem; /* Adjust horizontal alignment if needed */
     transform: translateY(-50%) !important;
     font-size: 1rem !important;
     transition: all 0.1s ease-in-out;
   }
 
-  /* Maintain centered label when input is focused or contains text */
-  .hrt-text-field-inner:focus-within label[for="phone-input"],
-  .hrt-text-field-input:not(:placeholder-shown) + label[for="phone-input"] {
+  /* Override the default shifting behavior on focus or when text is entered */
+  .phone-field .hrt-text-field-inner:focus-within label[for="phone-input"],
+  .phone-field .hrt-text-field-input:not(:placeholder-shown) + label[for="phone-input"] {
     top: 50% !important;
     transform: translateY(-50%) !important;
     font-size: 1rem !important;
   }
 </style>
+
 
 
 
