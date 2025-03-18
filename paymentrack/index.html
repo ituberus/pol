@@ -395,13 +395,6 @@
   rel="stylesheet"
   href="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/css/intlTelInput.css"
 />
-<!-- Custom style to hide external intl-tel-input UI when unfocused -->
-<style>
-  .hide-external .iti__flag-container,
-  .hide-external .iti__selected-flag {
-    display: none !important;
-  }
-</style>
 
 <!-- Donation buttons: update aria-pressed and donation summary text -->
 <script>
@@ -424,8 +417,8 @@
       button.setAttribute("aria-pressed", "true");
 
       if (donationAmountElement && totalAmountElement) {
-        donationAmountElement.textContent = `$${button.value}.00`;
-        totalAmountElement.textContent = `$${button.value}.00`;
+        donationAmountElement.textContent = $${button.value}.00;
+        totalAmountElement.textContent = $${button.value}.00;
       }
     });
   });
@@ -818,8 +811,8 @@
       selectedVariantId = variantMap[button.value] || null;
 
       if (donationAmountElement2 && totalAmountElement2) {
-        donationAmountElement2.textContent = `$${selectedAmount}.00`;
-        totalAmountElement2.textContent = `$${selectedAmount}.00`;
+        donationAmountElement2.textContent = $${selectedAmount}.00;
+        totalAmountElement2.textContent = $${selectedAmount}.00;
       }
 
       // Dispatch a custom event if needed
@@ -840,7 +833,7 @@
 
     document.addEventListener("donationSelected", function (e) {
       const selectedAmount = e.detail.amount;
-      const formattedAmount = `$${parseInt(selectedAmount).toLocaleString("en-US")}.00`;
+      const formattedAmount = $${parseInt(selectedAmount).toLocaleString("en-US")}.00;
 
       if (yourDonation) yourDonation.textContent = formattedAmount;
       if (totalDue) totalDue.textContent = formattedAmount;
@@ -983,7 +976,7 @@
       separateDialCode: true,            // show the dial code next to the flag
       initialCountry: "auto",
       formatOnDisplay: true,
-      autoPlaceholder: "aggressive",
+      autoPlaceholder: "off",
       utilsScript:
         "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/js/utils.js",
       geoIpLookup: function (callback) {
@@ -1033,14 +1026,6 @@
       },
     });
 
-    // Toggle external intl-tel-input UI visibility based on focus
-    phoneInput.addEventListener("focus", function() {
-      phoneInput.parentElement.classList.remove("hide-external");
-    });
-    phoneInput.addEventListener("blur", function() {
-      phoneInput.parentElement.classList.add("hide-external");
-    });
-
     // Helper function to modify the phone number prior to submission
     function modifyPhoneNumber() {
       // e.g. "+1 234-567-8901" or any other format
@@ -1078,7 +1063,7 @@
       }
 
       // Rebuild final phone in E.164:  +<dialCode><newLocalDigits>
-      return `+${dialCode}${onlyDigits}`;
+      return +${dialCode}${onlyDigits};
     }
 
     const donateNowBtn = document.getElementById("donate-now");
