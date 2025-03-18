@@ -1167,11 +1167,11 @@
     color: transparent !important;
   }
 
-  /* Adjust the label so it remains vertically centered even with padding */
+  /* Adjust label vertical alignment by modifying the transform */
   .hrt-text-field-inner:focus-within label[for="phone-input"],
   .hrt-text-field-input:not(:placeholder-shown) + label[for="phone-input"] {
-    top: calc(50% - 1.5rem) !important;  /* subtract half of the 1rem padding */
-    transform: translateY(-50%) !important;
+    top: 50% !important;
+    transform: translateY(-70%) !important; /* increased shift upward */
     font-size: 1rem !important;
   }
 </style>
